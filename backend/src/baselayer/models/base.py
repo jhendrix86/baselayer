@@ -8,7 +8,7 @@ including timestamps, soft delete, and audit fields.
 from datetime import datetime
 from typing import Any, Dict
 
-from sqlalchemy import DateTime, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Mapped, mapped_column
@@ -86,13 +86,15 @@ class BaseModel(Base):
     # Audit fields
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUIDType(as_uuid=True),
+        ForeignKey("users.id"),
         nullable=True,
         index=True,
         comment="ID of the user who created the record"
     )
-    
+
     updated_by: Mapped[uuid.UUID | None] = mapped_column(
         UUIDType(as_uuid=True),
+        ForeignKey("users.id"),
         nullable=True,
         index=True,
         comment="ID of the user who last updated the record"

@@ -6,10 +6,12 @@ for the Codex/Memory subsystem.
 """
 
 from datetime import datetime
+
+import uuid
 from enum import Enum
 from typing import Any, Dict
 
-from sqlalchemy import Boolean, String, Text, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import Boolean, String, Text, Numeric, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID, ARRAY
 

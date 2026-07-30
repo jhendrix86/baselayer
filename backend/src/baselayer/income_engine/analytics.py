@@ -11,7 +11,8 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select, func, and_, or_
+from sqlalchemy.future import select
+from sqlalchemy import func, and_, or_
 from structlog import get_logger
 
 from ..core.database import get_db_session

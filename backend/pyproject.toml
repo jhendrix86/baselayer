@@ -42,7 +42,7 @@ dev = [
     "httpx>=0.25.0",
 ]
 
-[tool.hatchling.build.targets.wheel]
+[tool.hatch.build.targets.wheel]
 packages = ["src/baselayer"]
 
 [tool.black]

@@ -6,6 +6,8 @@ for the Income Engine subsystem.
 """
 
 from datetime import datetime
+
+import uuid
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict

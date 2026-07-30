@@ -12,7 +12,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select, update
+from sqlalchemy.future import select
+from sqlalchemy import update
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from structlog import get_logger
 

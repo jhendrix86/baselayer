@@ -6,6 +6,8 @@ for the Multi-Agent Orchestration subsystem.
 """
 
 from datetime import datetime
+
+import uuid
 from enum import Enum
 from typing import Any, Dict
 

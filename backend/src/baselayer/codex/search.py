@@ -10,7 +10,8 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select, func, and_, or_, text
+from sqlalchemy.future import select
+from sqlalchemy import func, and_, or_, text
 from sqlalchemy.sql.expression import cast
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from structlog import get_logger

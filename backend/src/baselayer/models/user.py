@@ -5,6 +5,8 @@ User management with roles, permissions, and authentication tracking.
 """
 
 from datetime import datetime
+
+import uuid
 from enum import Enum
 from typing import Any, Dict
 

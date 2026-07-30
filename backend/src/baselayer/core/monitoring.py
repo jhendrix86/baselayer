@@ -12,7 +12,8 @@ from typing import Any, Dict, List, Optional, Union
 
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select, func
+from sqlalchemy.future import select
+from sqlalchemy import func
 from structlog import get_logger
 
 from .config import get_settings
