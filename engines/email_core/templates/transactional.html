@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block content %}
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+        <td align="center">
+            <!-- Transactional Header -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 30px;">
+                <tr>
+                    <td align="center">
+                        <h2 class="email-text" style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 24px; font-weight: 600; color: #2c3e50; text-align: center;">
+                            {{ subject }}
+                        </h2>
+                        {% if transaction_type %}
+                        <p class="email-text" style="margin: 10px 0 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px; text-align: center;">
+                            {{ transaction_type }}
+                        </p>
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+            
+            <!-- Transaction Details -->
+            {% if transaction_details %}
+            <div style="margin: 0 0 30px; padding: 25px; background-color: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px;">
+                <h3 class="email-text" style="margin: 0 0 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 18px; font-weight: 600; color: #2c3e50;">
+                    Transaction Details
+                </h3>
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    {% for key, value in transaction_details.items() %}
+                    <tr>
+                        <td style="padding: 8px 0; border-bottom: 1px solid #ecf0f1; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; font-weight: 600; color: #7f8c8d; width: 30%;">
+                            {{ key }}:
+                        </td>
+                        <td style="padding: 8px 0; border-bottom: 1px solid #ecf0f1; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; color: #2c3e50;">
+                            {{ value }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% endif %}
+            
+            <!-- Main Content -->
+            <div class="email-text" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 16px; line-height: 1.6; color: #34495e; text-align: left;">
+                {% block transactional_content %}
+                {{ content_html|safe }}
+                {% endblock %}
+            </div>
+            
+            <!-- Action Required -->
+            {% if action_required %}
+            <div style="margin: 30px 0; padding: 25px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px;">
+                <h3 class="email-text" style="margin: 0 0 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 18px; font-weight: 600; color: #856404;">
+                    Action Required
+                </h3>
+                <p class="email-text" style="margin: 0 0 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 15px; line-height: 1.6; color: #856404;">
+                    {{ action_required.message }}
+                </p>
+                <table border="0" cellpadding="0" cellspacing="0" align="center">
+                    <tr>
+                        <td align="center" style="border-radius: 4px; background-color: #ffc107;">
+                            <a href="{{ action_required.url }}" 
+                               style="font-size: 14px; font-family: sans-serif; font-weight: bold; color: #212529; text-decoration: none; border-radius: 4px; padding: 10px 20px; border: 1px solid #ffc107; display: inline-block;">
+                                {{ action_required.button_text }}
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            {% endif %}
+            
+            <!-- Information Notice -->
+            {% if information_notice %}
+            <div style="margin: 30px 0; padding: 25px; background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 6px;">
+                <h3 class="email-text" style="margin: 0 0 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 18px; font-weight: 600; color: #0c5460;">
+                    Information
+                </h3>
+                <p class="email-text" style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 15px; line-height: 1.6; color: #0c5460;">
+                    {{ information_notice }}
+                </p>
+            </div>
+            {% endif %}
+            
+            <!-- Success Confirmation -->
+            {% if success_message %}
+            <div style="margin: 30px 0; padding: 25px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 6px;">
+                <h3 class="email-text" style="margin: 0 0 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 18px; font-weight: 600; color: #155724;">
+                    ✓ Confirmation
+                </h3>
+                <p class="email-text" style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 15px; line-height: 1.6; color: #155724;">
+                    {{ success_message }}
+                </p>
+            </div>
+            {% endif %}
+            
+            <!-- Next Steps -->
+            {% if next_steps %}
+            <div style="margin: 30px 0;">
+                <h3 class="email-text" style="margin: 0 0 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 18px; font-weight: 600; color: #2c3e50;">
+                    Next Steps
+                </h3>
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    {% for step in next_steps %}
+                    <tr>
+                        <td style="padding: 10px 0; vertical-align: top;">
+                            <table border="0" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="vertical-align: top; padding-right: 15px;">
+                                        <div style="width: 24px; height: 24px; background-color: #3498db; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #ffffff; font-weight: bold;">
+                                            {{ loop.index }}
+                                        </div>
+                                    </td>
+                                    <td style="vertical-align: top;">
+                                        <h4 class="email-text" style="margin: 0 0 5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 15px; font-weight: 600; color: #2c3e50;">
+                                            {{ step.title }}
+                                        </h4>
+                                        <p class="email-text" style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.5; color: #34495e;">
+                                            {{ step.description }}
+                                        </p>
+                                        {% if step.url %}
+                                        <a href="{{ step.url }}" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 13px; color: #3498db; text-decoration: none;">
+                                            {{ step.link_text or 'Learn more' }} →
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% endif %}
+            
+            <!-- Support Information -->
+            {% if support_info %}
+            <div style="margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 6px; border: 1px solid #e0e0e0;">
+                <h4 class="email-text" style="margin: 0 0 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 16px; font-weight: 600; color: #2c3e50;">
+                    Need Help?
+                </h4>
+                <p class="email-text" style="margin: 0 0 10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.5; color: #34495e;">
+                    {{ support_info.message }}
+                </p>
+                <table border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td style="padding-right: 20px;">
+                            <a href="mailto:{{ support_info.email }}" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; color: #3498db; text-decoration: none;">
+                                {{ support_info.email }}
+                            </a>
+                        </td>
+                        {% if support_info.phone %}
+                        <td>
+                            <span style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; color: #7f8c8d;">
+                                {{ support_info.phone }}
+                            </span>
+                        </td>
+                        {% endif %}
+                    </tr>
+                </table>
+            </div>
+            {% endif %}
+            
+            <!-- Security Notice -->
+            <div style="margin: 30px 0; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px;">
+                <p class="email-text" style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; color: #856404; text-align: center;">
+                    <strong>Security Notice:</strong> {{ company_name }} will never ask for your password, credit card details, or personal information via email.
+                </p>
+            </div>
+            
+            <!-- Reference Number -->
+            {% if reference_number %}
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #ecf0f1;">
+                <p class="email-text" style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; color: #95a5a6;">
+                    Reference: {{ reference_number }}
+                </p>
+            </div>
+            {% endif %}
+            
+        </td>
+    </tr>
+</table>
+{% endblock %}

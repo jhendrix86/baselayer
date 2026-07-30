@@ -1,0 +1,32 @@
+{
+  "name": "baselayer",
+  "version": "0.1.0",
+  "description": "A modular, governance-grade operational system",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter backend dev\" \"pnpm --filter frontend dev\"",
+    "build": "pnpm --filter shared build && pnpm --filter frontend build",
+    "test": "pnpm --recursive test",
+    "lint": "pnpm --recursive lint",
+    "format": "pnpm --recursive format",
+    "clean": "pnpm --recursive clean && rm -rf node_modules",
+    "type-check": "pnpm --recursive type-check"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.7.0",
+    "@typescript-eslint/parser": "^6.7.0",
+    "concurrently": "^8.2.0",
+    "eslint": "^8.49.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.2.0"
+  },
+  "packageManager": "pnpm@8.7.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

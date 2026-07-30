@@ -1,0 +1,207 @@
+# =============================================================================
+# BaseLayer Development Docker Compose
+# =============================================================================
+# For local development on baselayer (192.168.1.50)
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # PostgreSQL 16 Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: baselayer-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: baselayer_dev
+      POSTGRES_USER: baselayer
+      POSTGRES_PASSWORD: dev_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./init-scripts/postgres:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - baselayer-dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U baselayer -d baselayer_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # Redis 7 Cache and Message Queue
+  redis:
+    image: redis:7-alpine
+    container_name: baselayer-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data_dev:/data
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    networks:
+      - baselayer-dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+  # Caddy Reverse Proxy (Development)
+  caddy:
+    image: caddy:2-alpine
+    container_name: baselayer-caddy-dev
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./config/caddy/Caddyfile.dev:/etc/caddy/Caddyfile
+      - caddy_data_dev:/data
+      - caddy_config_dev:/config
+    networks:
+      - baselayer-dev
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+
+  # Backend API Service
+  backend:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.dev
+      target: development
+    container_name: baselayer-backend-dev
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://baselayer:dev_password@postgres:5432/baselayer_dev
+      - REDIS_URL=redis://redis:6379/0
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://192.168.1.50:3000,http://192.168.1.50:5173
+    volumes:
+      - ../backend:/app
+      - ../shared:/app/shared
+      - /tmp/uploads:/tmp/uploads
+    ports:
+      - "8000:8000"
+    networks:
+      - baselayer-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+
+  # Frontend Development Server
+  frontend:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.frontend.dev
+    container_name: baselayer-frontend-dev
+    restart: unless-stopped
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_WS_URL=ws://localhost:8000
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    networks:
+      - baselayer-dev
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # Development Tools
+  adminer:
+    image: adminer:latest
+    container_name: baselayer-adminer-dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - baselayer-dev
+    depends_on:
+      - postgres
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.1'
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: baselayer-redis-commander-dev
+    restart: unless-stopped
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - baselayer-dev
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.1'
+
+volumes:
+  postgres_data_dev:
+    driver: local
+  redis_data_dev:
+    driver: local
+  caddy_data_dev:
+    driver: local
+  caddy_config_dev:
+    driver: local
+
+networks:
+  baselayer-dev:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

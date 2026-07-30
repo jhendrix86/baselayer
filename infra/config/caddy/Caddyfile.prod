@@ -1,0 +1,210 @@
+# =============================================================================
+# BaseLayer Production Caddy Configuration
+# =============================================================================
+# Production deployment with security hardening
+# =============================================================================
+
+{
+	# Global options
+	admin localhost:2019
+	log {
+		output file /var/log/caddy/access.log
+		format json
+	}
+	# Production email for certificate management
+	email admin@baselayer.local
+	# Auto-HTTPS enabled
+	auto_https on
+}
+
+# =============================================================================
+# Production HTTPS Server
+# =============================================================================
+baselayer.local {
+	# Production logging
+	log {
+		output file /var/log/caddy/production-access.log
+		format json
+		level INFO
+	}
+
+	# Let's Encrypt certificate
+	tls {
+		ca https://acme-v02.api.letsencrypt.org/directory
+	}
+
+	# Production security headers
+	header {
+		# CORS headers (LAN only)
+		Access-Control-Allow-Origin "https://baselayer.local http://192.168.1.50:3000"
+		Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+		Access-Control-Allow-Headers "Authorization, Content-Type, X-Request-ID"
+		Access-Control-Allow-Credentials true
+		Access-Control-Max-Age 86400
+
+		# Security headers
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+
+		# HSTS for production
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+		# Content Security Policy
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+
+		# Remove server signature
+		-Server
+	}
+
+	# Handle preflight requests
+	@options method OPTIONS
+	respond @options 200
+
+	# Rate limiting
+	@api_path {
+		path /api/* /health/* /metrics/*
+	}
+	rate_limit {
+		zone api
+		key {remote_host}
+		events 60
+		window 1m
+	}
+
+	# Frontend (static files)
+	handle /* {
+		root * /var/www/html
+		try_files {path} {path}/ /index.html
+		file_server
+		# Cache static assets
+		@static {
+			path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
+		}
+		header @static Cache-Control "public, max-age=31536000, immutable"
+	}
+
+	# API routes
+	reverse_proxy @api_path backend:8000 {
+		# WebSocket support
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto https
+		header_up X-Forwarded-Host {host}
+		# Connection pooling
+		transport http {
+			max_idle_conns 100
+			idle_timeout 90s
+		}
+	}
+
+	# Health checks bypass rate limiting
+	@health {
+		path /health/*
+	}
+	rate_limit {
+		zone health
+		key {remote_host}
+		events 1000
+		window 1m
+	}
+	reverse_proxy @health backend:8000
+
+	# Metrics endpoint (restricted access)
+	@metrics {
+		path /metrics/*
+	}
+	reverse_proxy @metrics backend:8000
+
+	# Error pages
+	handle_errors {
+		@4xx expression {status} >= 400 && {status} < 500
+		respond @4xx "Client Error: {status}"
+		@5xx expression {status} >= 500
+		respond @5xx "Server Error: {status}"
+	}
+}
+
+# =============================================================================
+# HTTP to HTTPS Redirect
+# =============================================================================
+:80 {
+	# Redirect all HTTP to HTTPS
+	@http_to_https host baselayer.local
+	redir @http_to_https https://{host}{uri} permanent
+
+	# Handle Let's Encrypt challenges
+	@letsencrypt path /.well-known/acme-challenge/*
+	root * /var/www/.well-known/acme-challenge
+	file_server
+}
+
+# =============================================================================
+# Local Network Access (IP-based)
+# =============================================================================
+192.168.1.50:443 {
+	# Local network logging
+	log {
+		output file /var/log/caddy/local-access.log
+		format json
+		level INFO
+	}
+
+	# Self-signed certificate for local network
+	tls internal
+
+	# Local network security headers
+	header {
+		# CORS headers for local network
+		Access-Control-Allow-Origin "http://192.168.1.50:3000"
+		Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+		Access-Control-Allow-Headers "Authorization, Content-Type, X-Request-ID"
+		Access-Control-Allow-Credentials true
+		Access-Control-Max-Age 86400
+
+		# Security headers
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+	}
+
+	# Handle preflight requests
+	@options method OPTIONS
+	respond @options 200
+
+	# Frontend (static files)
+	handle /* {
+		root * /var/www/html
+		try_files {path} {path}/ /index.html
+		file_server
+	}
+
+	# API routes
+	@api_path {
+		path /api/* /health/* /metrics/*
+	}
+	reverse_proxy @api_path backend:8000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto https
+	}
+}
+
+# =============================================================================
+# Admin Interface (localhost only)
+# =============================================================================
+localhost:2019 {
+	bind localhost
+	# Admin interface security
+	basicauth "admin" "admin_password_hash_here"
+}
+
+# =============================================================================
+# Import additional configurations
+# =============================================================================
+# Uncomment to include additional config files
+# import config/*.caddy

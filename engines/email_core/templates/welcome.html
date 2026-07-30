@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+        <td align="center">
+            <!-- Welcome Message -->
+            <h2 class="email-text" style="margin: 0 0 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 28px; font-weight: 600; color: #2c3e50; text-align: center;">
+                {% if subscriber.first_name %}
+                Welcome, {{ subscriber.first_name }}!
+                {% else %}
+                Welcome to {{ company_name }}!
+                {% endif %}
+            </h2>
+            
+            {% if lead_magnet %}
+            <!-- Lead Magnet Delivery -->
+            <div style="background-color: #ecf0f1; border-radius: 6px; padding: 20px; margin: 20px 0; text-align: center;">
+                <h3 class="email-text" style="margin: 0 0 10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 18px; font-weight: 600; color: #2c3e50;">
+                    Your Free Resource is Ready
+                </h3>
+                <p class="email-text" style="margin: 0 0 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; color: #34495e;">
+                    Thank you for subscribing! Here's your complimentary {{ lead_magnet.name }}.
+                </p>
+                <table border="0" cellpadding="0" cellspacing="0" align="center">
+                    <tr>
+                        <td align="center" style="border-radius: 4px; background-color: #3498db;">
+                            <a href="{{ base_url }}/download/{{ lead_magnet.id }}?email={{ subscriber.email|url_encode }}" 
+                               style="font-size: 16px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; border-radius: 4px; padding: 12px 24px; border: 1px solid #3498db; display: inline-block;">
+                                Download Now
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            {% endif %}
+            
+            <!-- Main Content -->
+            <div class="email-text" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 16px; line-height: 1.6; color: #34495e; text-align: left;">
+                {% block welcome_content %}
+                <p style="margin: 0 0 15px;">
+                    We're excited to have you join our community of professionals dedicated to excellence and continuous improvement.
+                </p>
+                
+                <h3 style="margin: 25px 0 10px; font-size: 20px; font-weight: 600; color: #2c3e50;">What to Expect</h3>
+                <ul style="margin: 0 0 15px 20px; padding: 0;">
+                    <li style="margin-bottom: 8px;">Actionable insights delivered weekly</li>
+                    <li style="margin-bottom: 8px;">Exclusive content not available elsewhere</li>
+                    <li style="margin-bottom: 8px;">Practical strategies for professional growth</li>
+                    <li style="margin-bottom: 8px;">Early access to new resources and tools</li>
+                </ul>
+                
+                <h3 style="margin: 25px 0 10px; font-size: 20px; font-weight: 600; color: #2c3e50;">Your Journey Starts Here</h3>
+                <p style="margin: 0 0 15px;">
+                    Over the coming days, you'll receive a carefully crafted welcome sequence designed to help you get the most value from our platform. Each email builds upon the previous one, creating a comprehensive foundation for your success.
+                </p>
+                
+                <p style="margin: 0 0 15px;">
+                    Keep an eye on your inbox for our next email, where we'll share the #1 mistake most professionals make in their first year and how you can avoid it.
+                </p>
+                {% endblock %}
+            </div>
+            
+            <!-- Call to Action -->
+            <table border="0" cellpadding="0" cellspacing="0" align="center" style="margin: 30px 0;">
+                <tr>
+                    <td align="center" style="border-radius: 4px; background-color: #27ae60;">
+                        <a href="{{ base_url }}/getting-started" 
+                           style="font-size: 16px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; border-radius: 4px; padding: 12px 24px; border: 1px solid #27ae60; display: inline-block;">
+                            Get Started Now
+                        </a>
+                    </td>
+                </tr>
+            </table>
+            
+            <!-- Personal Note -->
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ecf0f1;">
+                <p class="email-text" style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; font-style: italic; color: #7f8c8d;">
+                    We're committed to your success and look forward to supporting your professional journey.
+                </p>
+                <p class="email-text" style="margin: 10px 0 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; font-style: italic; color: #7f8c8d;">
+                    Best regards,<br>
+                    The {{ company_name }} Team
+                </p>
+            </div>
+            
+        </td>
+    </tr>
+</table>
+{% endblock %}

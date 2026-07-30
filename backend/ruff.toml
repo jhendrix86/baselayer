@@ -1,0 +1,176 @@
+# =============================================================================
+# BaseLayer Ruff Configuration
+# =============================================================================
+# Fast Python linter and formatter for i5-2400 optimization
+# =============================================================================
+
+# Target Python version
+target-version = "py312"
+
+# Line length (matches Black)
+line-length = 88
+
+# Exclude directories and files
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "migrations",
+]
+
+# Per-file ignores
+[per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**" = ["S101", "S106", "S311"]
+"test_*.py" = ["S101", "S106", "S311"]
+
+# Select rules (flake8 + pycodestyle + flake8-bugbear + isort + security)
+select = [
+    # pycodestyle
+    "E",
+    "W",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # pep8-naming
+    "N",
+    # flake8-comprehensions
+    "C4",
+    # flake8-debugger
+    "T10",
+    # flake8-errmsg
+    "EM",
+    # flake8-print
+    "T20",
+    # flake8-return
+    "RET",
+    # flake8-async
+    "ASYNC",
+    # flake8-bandit (security)
+    "S",
+    # flake8-datetime
+    "DTZ",
+    # flake8-tidy-imports
+    "TID",
+    # flake8-type-checking
+    "TCH",
+    # flake8-logging
+    "LOG",
+    # flake8-future-annotations
+    "FA",
+]
+
+# Ignore specific rules
+ignore = [
+    # Line too long (handled by Black)
+    "E501",
+    # Do not assign a lambda expression, use a def
+    "E731",
+    # Mutable class attributes
+    "RUF012",
+    # Too many arguments to function call
+    "PLR0913",
+    # Magic number
+    "PLR2004",
+    # Use `typing.Any` instead of `object` for type annotations
+    "FA102",
+    # Missing type annotation for `self`
+    "ANN101",
+    # Missing type annotation for `cls` in classmethod
+    "ANN102",
+    # Missing type annotation for `*args`
+    "ANN002",
+    # Missing type annotation for `**kwargs`
+    "ANN003",
+    # Dynamically typed expressions (typing.Any) are disallowed
+    "ANN401",
+    # Avoid using optional parameters in callbacks
+    "B008",
+    # Use `list` instead of `list` literal
+    "FURB118",
+    # Use `dict` instead of `dict` literal
+    "FURB189",
+]
+
+# Flake8 configuration
+[flake8]
+max-line-length = 88
+extend-ignore = ["E501"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".venv",
+    "venv",
+]
+
+# isort configuration
+[isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["baselayer"]
+known_third_party = ["fastapi", "pydantic", "sqlalchemy", "alembic", "redis", "httpx"]
+
+# mccabe complexity
+[mccabe]
+max-complexity = 10
+
+# pycodestyle
+[pycodestyle]
+max-line-length = 88
+
+# flake8-quotes
+[flake8-quotes]
+inline-quotes = "double"
+multiline-quotes = "double"
+docstring-quotes = "double"
+
+# flake8-comprehensions
+[flake8-comprehensions]
+allow-dict-calls-with-keyword-arguments = true
+
+# flake8-type-checking
+[flake8-type-checking]
+strict = true
+runtime-evaluated-base-classes = true
+
+# flake8-tidy-imports
+[flake8-tidy-imports]
+ban-relative-imports = "all"
+
+# flake8-logging
+[flake8-logging]
+allowed-logger-names = ["baselayer", "structlog"]
+disallowed-logger-names = ["root"]
+
+# flake8-bandit (security)
+[bandit]
+exclude_dirs = ["tests", "test_*"]
+skips = ["B101", "B601"]

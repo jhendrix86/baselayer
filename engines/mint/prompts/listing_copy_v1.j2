@@ -1,0 +1,204 @@
+---
+name: listing_copy
+version: 1
+description: Gumroad listing copy optimization template
+category: marketing
+created_at: 2026-05-02
+updated_at: 2026-05-02
+---
+
+Generate compelling Gumroad listing copy for a {{ product_type }} digital product using {{ framework }} framework.
+
+## Product Information
+- **Title**: {{ title }}
+- **Subtitle**: {{ subtitle }}
+- **Description**: {{ description }}
+- **Target Audience**: {{ target_audience }}
+- **Price**: ${{ price_dollars }}
+- **Tags**: {{ tags | join(', ') }}
+- **Optimization Strategy**: {{ optimization_strategy }}
+
+## Framework Instructions
+
+### 1. Attention (Hook)
+{% if optimization_strategy == "benefit_driven" %}
+- Start with the primary benefit or outcome
+- Use emotional triggers related to {{ target_audience }}
+- Create immediate interest and curiosity
+- Promise a specific result or transformation
+{% endif %}
+
+{% if optimization_strategy == "problem_solution" %}
+- Identify with the reader's pain point
+- Agitate the problem slightly
+- Present your solution as the answer
+- Create urgency to solve the problem
+{% endif %}
+
+{% if optimization_strategy == "scarcity_urgency" %}
+- Emphasize limited availability or time-sensitive offer
+- Create fear of missing out (FOMO)
+- Use urgency-inducing language
+- Set a clear deadline or limit
+{% endif %}
+
+{% if optimization_strategy == "social_proof" %}
+- Lead with social proof (testimonials, user count)
+- Show credibility and trust signals
+- Include specific results or achievements
+- Demonstrate popularity and demand
+{% endif %}
+
+{% if optimization_strategy == "risk_reversal" %}
+- Offer a strong guarantee or risk-free trial
+- Remove purchase barriers and objections
+- Build confidence in the solution
+- Emphasize customer protection
+{% endif %}
+
+{% if optimization_strategy == "premium_positioning" %}
+- Emphasize exclusivity and premium quality
+- Highlight unique features and advantages
+- Justify the premium price point
+- Create desire for superior results
+{% endif %}
+
+{% if optimization_strategy == "value_proposition" %}
+- Focus on ROI and value for money
+- Compare to alternatives (without naming)
+- Highlight long-term benefits
+- Emphasize practical savings and efficiency
+{% endif %}
+
+### 2. Interest (Build Desire)
+- Expand on the initial hook with specific benefits
+- Connect emotionally to {{ target_audience }} needs
+- Paint a picture of the desired outcome
+- Show how this product solves their specific problems
+
+### 3. Desire (Create Want)
+- Detail the transformation and results
+- Use vivid language and sensory details
+- Show the "after" state clearly
+- Make the benefits tangible and concrete
+
+### 4. Action (Call to Action)
+- Clear, direct instruction to purchase
+- Create urgency or scarcity
+- Remove friction and objections
+- Make it easy to take the next step
+
+## Content Guidelines
+
+### Tone and Style
+- Professional yet conversational
+- Benefit-focused language
+- Emotional appeal where appropriate
+- Clear and concise
+- Action-oriented verbs
+
+### Character Limits
+- **Title**: {{ title_max_chars }} characters maximum
+- **Subtitle**: {{ subtitle_max_chars }} characters maximum
+- **Description**: {{ description_max_chars }} characters maximum
+- **Features**: {{ features_max_chars }} characters maximum
+- **Benefits**: {{ benefits_max_chars }} characters maximum
+
+### Kade Persona Requirements
+- No personal anecdotes or identity disclosure
+- Maintain professional, authoritative tone
+- Focus on practical value and actionable insights
+- Avoid "I think", "I believe", "In my opinion"
+- Use expert language without being overly academic
+
+### Marketing Best Practices
+- Use power words: "discover", "master", "transform", "unlock"
+- Include specific numbers and results where possible
+- Use social proof and credibility signals
+- Create urgency and scarcity appropriately
+- Address objections proactively
+- End with strong, clear call to action
+
+## Special Instructions for {{ product_type }}
+
+{% if product_type == "pdf_guide" %}
+- Emphasize comprehensive, in-depth content
+- Highlight step-by-step guidance
+- Focus on practical application and results
+- Mention worksheets or exercises if included
+{% endif %}
+
+{% if product_type == "template_pack" %}
+- Emphasize time-saving and efficiency
+- Highlight customization and versatility
+- Focus on professional quality and design
+- Mention variety of templates included
+{% endif %}
+
+{% if product_type == "checklist" %}
+- Emphasize completeness and organization
+- Focus on productivity and progress tracking
+- Highlight ease of use and implementation
+- Mention time-saving benefits
+{% endif %}
+
+{% if product_type == "cheat_sheet" %}
+- Emphasize quick reference and accessibility
+- Focus on time-saving and efficiency
+- Highlight comprehensive coverage
+- Mention practical tips and shortcuts
+{% endif %}
+
+{% if product_type == "prompt_library" %}
+- Emphasize AI optimization and quality
+- Focus on versatility and applications
+- Highlight expert-level prompts
+- Mention compatibility and ease of use
+{% endif %}
+
+{% if product_type == "code_snippets" %}
+- Emphasize time-saving and code quality
+- Focus on practical implementation
+- Highlight documentation and examples
+- Mention compatibility and best practices
+{% endif %}
+
+{% if product_type == "notion_template" %}
+- Emphasize organization and productivity
+- Focus on customization and flexibility
+- Highlight Notion-specific features
+- Mention setup and integration tips
+{% endif %}
+
+## Output Structure
+
+### Title ({{ title_max_chars }} chars)
+{{ title }}
+
+### Subtitle ({{ subtitle_max_chars }} chars)
+{{ subtitle }}
+
+### Description ({{ description_max_chars }} chars)
+{{ description }}
+
+### Key Features ({{ features_max_chars }} chars)
+{% for feature in features %}
+• {{ feature }}
+{% endfor %}
+
+### Benefits ({{ benefits_max_chars }} chars)
+{% for benefit in benefits %}
+• {{ benefit }}
+{% endfor %}
+
+### Call to Action
+{{ cta }}
+
+## Final Requirements
+- Follow all character limits strictly
+- Maintain Kade persona throughout
+- No placeholder text or incomplete sections
+- Professional, compelling, and persuasive
+- Focus on value and outcomes for {{ target_audience }}
+- Clear, actionable call to action
+- Error-free grammar and spelling

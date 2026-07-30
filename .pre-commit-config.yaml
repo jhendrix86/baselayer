@@ -1,0 +1,214 @@
+# =============================================================================
+# BaseLayer Pre-commit Hooks Configuration
+# =============================================================================
+# Ensures code quality before commits
+# =============================================================================
+
+repos:
+  # =============================================================================
+  # Python Backend Hooks
+  # =============================================================================
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.6
+    hooks:
+      # Run ruff linter
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+      # Run ruff formatter
+      - id: ruff-format
+        files: ^backend/
+
+  # =============================================================================
+  # Python Type Checking
+  # =============================================================================
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        files: ^backend/src/
+        pass_filenames: false
+        args: [--strict, src/]
+
+  # =============================================================================
+  # Python Security
+  # =============================================================================
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        args: [-c, backend/pyproject.toml]
+        files: ^backend/src/
+        additional_dependencies: ["bandit[toml]"]
+
+  # =============================================================================
+  # Frontend Hooks
+  # =============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      # Check for large files
+      - id: check-added-large-files
+        args: [--maxkb=1024]  # 1MB limit
+      # Check for merge conflicts
+      - id: check-merge-conflict
+      # Check for broken symlinks
+      - id: check-symlinks
+      # Check for executable files
+      - id: check-executables-have-shebangs
+      # Check for JSON files
+      - id: check-json
+      # Check for YAML files
+      - id: check-yaml
+      # Check for TOML files
+      - id: check-toml
+      # Trim trailing whitespace
+      - id: trailing-whitespace
+      # Remove end-of-file newlines
+      - id: end-of-file-fixer
+      # Check for debug statements
+      - id: debug-statements
+        files: ^backend/
+
+  # =============================================================================
+  # Frontend JavaScript/TypeScript Hooks
+  # =============================================================================
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.55.0  # Use the ref you want to point at
+    hooks:
+      - id: eslint
+        files: ^frontend/
+        types: [file]
+        types_or: [javascript, jsx, ts, tsx]
+        additional_dependencies:
+          - eslint@8.55.0
+          - "@typescript-eslint/eslint-plugin@6.14.0"
+          - "@typescript-eslint/parser@6.14.0"
+          - eslint-plugin-react@7.33.2
+          - eslint-plugin-react-hooks@4.6.0
+          - eslint-plugin-jsx-a11y@6.8.0
+          - eslint-plugin-import@2.29.0
+
+  # =============================================================================
+  # Frontend Formatting
+  # =============================================================================
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        files: ^frontend/
+        types_or: [javascript, jsx, ts, tsx, json, css, scss, markdown]
+        additional_dependencies:
+          - prettier@3.1.0
+          - "@prettier/plugin-tailwindcss@0.5.9"
+
+  # =============================================================================
+  # Shared Types Hooks
+  # =============================================================================
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.55.0
+    hooks:
+      - id: eslint
+        files: ^shared/
+        types: [file]
+        types_or: [javascript, jsx, ts, tsx]
+        additional_dependencies:
+          - eslint@8.55.0
+          - "@typescript-eslint/eslint-plugin@6.14.0"
+          - "@typescript-eslint/parser@6.14.0"
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        files: ^shared/
+        types_or: [javascript, jsx, ts, tsx, json]
+        additional_dependencies:
+          - prettier@3.1.0
+
+  # =============================================================================
+  # Docker Hooks
+  # =============================================================================
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint
+        files: ^infra/Dockerfile*
+        args: [--ignore, DL3008, --ignore, DL3009]
+
+  # =============================================================================
+  # Configuration Files Hooks
+  # =============================================================================
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: ^\.env\.example$
+
+  # =============================================================================
+  # Shell Script Hooks
+  # =============================================================================
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        files: \.(sh|bash|ksh)$
+
+  # =============================================================================
+  # YAML Hooks
+  # =============================================================================
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.33.0
+    hooks:
+      - id: yamllint
+        files: \.(yaml|yml)$
+        args: [-c, .yamllint.yaml]
+
+  # =============================================================================
+  # Markdown Hooks
+  # =============================================================================
+  - repo: https://github.com/igor-davidov/md-lint
+    rev: v0.5.0
+    hooks:
+      - id: md-lint
+        files: \.md$
+
+  # =============================================================================
+  # Commit Message Hooks
+  # =============================================================================
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.0.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [--feat, --fix, --docs, --style, --refactor, --perf, --test, --chore, --build, --ci, --revert]
+
+# =============================================================================
+# Configuration
+# =============================================================================
+default_language_version:
+  python: python3.12
+  node: 20
+
+# Fail fast - stop on first failure
+fail_fast: true
+
+# Minimum pre-commit version
+minimum_pre_commit_version: 3.0.0
+
+# CI configuration
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit.com hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false

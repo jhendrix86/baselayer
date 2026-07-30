@@ -1,0 +1,162 @@
+---
+name: section_writer
+version: 1
+description: Individual section generation template for products
+category: generation
+created_at: 2026-05-02
+updated_at: 2026-05-02
+---
+
+Generate a comprehensive {{ section_name }} section for a {{ product_type }} digital product.
+
+## Section Context
+- **Product Title**: {{ title }}
+- **Target Audience**: {{ target_audience }}
+- **Product Type**: {{ product_type }}
+- **Brief**: {{ brief }}
+- **Word Count Target**: {{ word_count_target }} words
+- **Section Focus**: {{ section_focus }}
+
+## Section Requirements
+
+### Content Focus
+{% if section_name == "Introduction" %}
+- Hook the reader immediately with a compelling opening
+- State the problem or opportunity clearly
+- Preview the solution and value proposition
+- Establish credibility and authority
+- Keep it concise and impactful
+{% endif %}
+
+{% if section_name == "Problem Statement" %}
+- Clearly define the core problem or challenge
+- Explain why this problem matters to the target audience
+- Quantify the impact where possible
+- Build emotional connection to the pain points
+- Set up the need for a solution
+{% endif %}
+
+{% if section_name == "Solution Overview" %}
+- Present the main solution/approach
+- Explain how it addresses the identified problem
+- Highlight key benefits and advantages
+- Differentiate from existing alternatives
+- Build confidence in the solution
+{% endif %}
+
+{% if section_name == "Implementation Steps" %}
+- Provide detailed, step-by-step instructions
+- Include practical examples and use cases
+- Add troubleshooting tips and common pitfalls
+- Ensure each step is actionable and clear
+- Include necessary tools or resources
+{% endif %}
+
+{% if section_name == "Examples and Case Studies" %}
+- Provide real-world application examples
+- Include before/after scenarios where applicable
+- Add success stories and testimonials
+- Show different use cases and variations
+- Demonstrate versatility and effectiveness
+{% endif %}
+
+{% if section_name == "Best Practices" %}
+- Outline key principles and guidelines
+- Include optimization techniques
+- Add advanced tips for experienced users
+- Cover common mistakes to avoid
+- Provide performance optimization advice
+{% endif %}
+
+{% if section_name == "Conclusion" %}
+- Summarize key takeaways and benefits
+- Reinforce the value proposition
+- Provide clear next steps and call to action
+- Leave the reader motivated and confident
+- Include additional resources for continued learning
+{% endif %}
+
+### Writing Guidelines
+- Use professional, authoritative tone
+- Write in clear, accessible language
+- Include specific, actionable advice
+- Avoid jargon unless explained
+- Maintain consistency with Kade persona
+- No personal anecdotes or identity disclosure
+- Focus on practical value and outcomes
+
+### Structure Requirements
+- Start with a strong opening sentence
+- Use clear headings and subheadings
+- Include bullet points or numbered lists where appropriate
+- Add examples and illustrations where helpful
+- End with a clear summary or transition
+
+### Quality Standards
+- Meet or exceed the target word count of {{ word_count_target }} words
+- Provide comprehensive, complete information
+- Ensure all content is original and valuable
+- Check for grammar, spelling, and formatting
+- Verify all instructions are clear and actionable
+
+## Special Instructions for {{ product_type }}
+
+{% if product_type == "pdf_guide" %}
+- Focus on comprehensive, in-depth content
+- Include detailed explanations and examples
+- Provide step-by-step guidance
+- Add practical exercises or worksheets if applicable
+{% endif %}
+
+{% if product_type == "template_pack" %}
+- Emphasize ease of use and customization
+- Include clear instructions for each template
+- Provide examples of filled templates
+- Add tips for adaptation and modification
+{% endif %}
+
+{% if product_type == "checklist" %}
+- Make items specific and measurable
+- Include progress tracking elements
+- Add context and usage instructions
+- Provide completion criteria
+{% endif %}
+
+{% if product_type == "cheat_sheet" %}
+- Focus on quick reference information
+- Use concise, scannable format
+- Include keyboard shortcuts and commands
+- Add essential formulas and references
+{% endif %}
+
+{% if product_type == "prompt_library" %}
+- Provide context for each prompt
+- Include usage examples and variations
+- Add tips for prompt optimization
+- Categorize by use case or complexity
+{% endif %}
+
+{% if product_type == "code_snippets" %}
+- Include working, tested code examples
+- Add comments and explanations
+- Provide installation/setup instructions
+- Include error handling and debugging tips
+{% endif %}
+
+{% if product_type == "notion_template" %}
+- Focus on Notion-specific features
+- Include database structure and relationships
+- Provide setup and customization instructions
+- Add automation and integration tips
+{% endif %}
+
+## Final Requirements
+- **Word Count**: {{ word_count_target }} words (minimum {{ word_count_target * 0.8 }})
+- **Tone**: Professional, authoritative, helpful
+- **Persona**: Kade - expert digital product creator
+- **Format**: Well-structured with clear headings
+- **Quality**: Comprehensive, actionable, valuable
+- **No**: Personal anecdotes, AI identity disclosure, placeholder text
+
+## Output Format
+Generate the {{ section_name }} section following all requirements above. Ensure the content is complete, well-structured, and provides genuine value to the target audience.

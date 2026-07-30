@@ -1,0 +1,171 @@
+# =============================================================================
+# BaseLayer Development Caddy Configuration
+# =============================================================================
+# For local development with self-signed certificates
+# =============================================================================
+
+{
+	# Global options
+	auto_https off
+	admin localhost:2019
+	log {
+		output file /var/log/caddy/access.log
+		format json
+	}
+}
+
+# =============================================================================
+# Development HTTP Server
+# =============================================================================
+:80 {
+	# Development logging
+	log {
+		output file /var/log/caddy/dev-access.log
+		format console
+	}
+
+	# Development headers
+	header {
+		# CORS headers for development
+		Access-Control-Allow-Origin "*"
+		Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+		Access-Control-Allow-Headers "*"
+		Access-Control-Allow-Credentials true
+		Access-Control-Max-Age 86400
+
+		# Security headers (relaxed for development)
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	# Handle preflight requests
+	@options method OPTIONS
+	respond @options 200
+
+	# Frontend development server
+	reverse_proxy frontend:3000 {
+		# WebSocket support
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto http
+	}
+
+	# API routes
+	@api_path {
+		path /api/* /health/* /metrics/*
+	}
+	reverse_proxy @api_path backend:8000 {
+		# WebSocket support
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto http
+	}
+
+	# Development tools
+	@adminer_path {
+		path /adminer*
+	}
+	reverse_proxy @adminer_path adminer:8080
+
+	@redis_commander_path {
+		path /redis*
+	}
+	reverse_proxy @redis_commander_path redis-commander:8081
+
+	# Static file serving
+	handle /static/* {
+		root * /var/www/static
+		file_server
+	}
+
+	# Default response
+	respond 404 "Not Found"
+}
+
+# =============================================================================
+# Development HTTPS Server (self-signed)
+# =============================================================================
+:443 {
+	# Development logging
+	log {
+		output file /var/log/caddy/dev-https-access.log
+		format console
+	}
+
+	# Self-signed certificate for development
+	tls internal
+
+	# Development headers
+	header {
+		# CORS headers for development
+		Access-Control-Allow-Origin "*"
+		Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+		Access-Control-Allow-Headers "*"
+		Access-Control-Allow-Credentials true
+		Access-Control-Max-Age 86400
+
+		# Security headers (relaxed for development)
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	# Handle preflight requests
+	@options method OPTIONS
+	respond @options 200
+
+	# Frontend development server
+	reverse_proxy frontend:3000 {
+		# WebSocket support
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto https
+	}
+
+	# API routes
+	@api_path {
+		path /api/* /health/* /metrics/*
+	}
+	reverse_proxy @api_path backend:8000 {
+		# WebSocket support
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto https
+	}
+
+	# Development tools
+	@adminer_path {
+		path /adminer*
+	}
+	reverse_proxy @adminer_path adminer:8080
+
+	@redis_commander_path {
+		path /redis*
+	}
+	reverse_proxy @redis_commander_path redis-commander:8081
+
+	# Static file serving
+	handle /static/* {
+		root * /var/www/static
+		file_server
+	}
+
+	# Default response
+	respond 404 "Not Found"
+}
+
+# =============================================================================
+# Admin Interface
+# =============================================================================
+localhost:2019 {
+	bind localhost
+}
+
+# =============================================================================
+# Import additional configurations
+# =============================================================================
+# Uncomment to include additional config files
+# import config/*.caddy

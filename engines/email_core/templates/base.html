@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{{ subject }}</title>
+    <style>
+        /* Base email styles */
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+        body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+        
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .email-container { background-color: #1a1a1a !important; }
+            .email-content { background-color: #2d2d2d !important; color: #ffffff !important; }
+            .email-header { background-color: #1a1a1a !important; border-bottom-color: #404040 !important; }
+            .email-footer { background-color: #1a1a1a !important; border-top-color: #404040 !important; color: #999999 !important; }
+            .email-text { color: #ffffff !important; }
+            .email-link { color: #4a9eff !important; }
+            .email-button { background-color: #4a9eff !important; }
+        }
+        
+        /* Responsive styles */
+        @media screen and (max-width: 600px) {
+            .email-container { width: 100% !important; }
+            .email-content { padding: 20px 15px !important; }
+            .email-button { width: 100% !important; }
+        }
+    </style>
+</head>
+<body style="margin: 0 !important; padding: 0 !important; background-color: #f4f4f4;">
+    
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td align="center" style="background-color: #f4f4f4; padding: 20px 0;">
+                
+                <!-- Email Container -->
+                <table class="email-container" border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 600px;">
+                    
+                    <!-- Header -->
+                    <tr>
+                        <td class="email-header" align="center" style="padding: 30px 30px 20px; border-bottom: 1px solid #e0e0e0; background-color: #ffffff;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td align="center">
+                                        <h1 style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 24px; font-weight: 600; color: #2c3e50;">
+                                            {{ company_name }}
+                                        </h1>
+                                        {% if preview_text %}
+                                        <p style="margin: 10px 0 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; color: #7f8c8d; font-style: italic;">
+                                            {{ preview_text }}
+                                        </p>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    
+                    <!-- Main Content -->
+                    <tr>
+                        <td class="email-content" style="padding: 30px; background-color: #ffffff;">
+                            {% block content %}
+                            <!-- Email content will be inserted here -->
+                            {% endblock %}
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td class="email-footer" align="center" style="padding: 30px; border-top: 1px solid #e0e0e0; background-color: #f8f9fa;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td align="center">
+                                        <!-- Unsubscribe Link -->
+                                        <p style="margin: 0 0 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; color: #7f8c8d;">
+                                            <a href="{{ unsubscribe_url }}" style="color: #7f8c8d; text-decoration: underline;">Unsubscribe</a> | 
+                                            <a href="{{ base_url }}/preferences" style="color: #7f8c8d; text-decoration: underline;">Manage Preferences</a>
+                                        </p>
+                                        
+                                        <!-- Company Address -->
+                                        <p style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; color: #7f8c8d;">
+                                            {{ company_address }}
+                                        </p>
+                                        
+                                        <!-- CAN-SPAM compliance -->
+                                        <p style="margin: 15px 0 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 11px; color: #95a5a6;">
+                                            This email was sent to {{ subscriber.email }} because you subscribed to our newsletter.
+                                            If you believe this was sent in error, please contact us at {{ support_email }}.
+                                        </p>
+                                        
+                                        <!-- Timestamp -->
+                                        <p style="margin: 10px 0 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 10px; color: #bdc3c7;">
+                                            Sent on {{ current_date.strftime('%B %d, %Y') }} at {{ current_date.strftime('%I:%M %p') }} {{ current_date.strftime('%Z') }}
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    
+                </table>
+                
+            </td>
+        </tr>
+    </table>
+    
+</body>
+</html>

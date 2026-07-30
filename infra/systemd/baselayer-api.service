@@ -1,0 +1,73 @@
+# =============================================================================
+# BaseLayer API Service (systemd)
+# =============================================================================
+# Production systemd service for BaseLayer API server
+# =============================================================================
+
+[Unit]
+Description=BaseLayer API Server
+Documentation=https://github.com/baselayer/baselayer
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+PartOf=baselayer.target
+
+[Service]
+# Service configuration
+Type=exec
+User=baselayer
+Group=baselayer
+WorkingDirectory=/opt/baselayer
+
+# Environment variables
+Environment=ENVIRONMENT=production
+Environment=PATH=/opt/baselayer/.venv/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=-/etc/baselayer/baselayer.env
+
+# Resource limits (optimized for i5-2400, 16GB RAM)
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=2G
+CPUQuota=200%
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/baselayer/uploads /var/log/baselayer /tmp/uploads
+ReadOnlyPaths=/opt/baselayer
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Process management
+ExecStart=/opt/baselayer/.venv/bin/uvicorn baselayer.main:app --host 0.0.0.0 --port 8000 --workers 4 --worker-class uvicorn.workers.UvicornWorker
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStop=/bin/kill -TERM $MAINPID
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+Restart=always
+RestartSec=5
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=baselayer-api
+
+# PID file
+PIDFile=/run/baselayer/baselayer-api.pid
+
+[Install]
+WantedBy=multi-user.target
+WantedBy=baselayer.target

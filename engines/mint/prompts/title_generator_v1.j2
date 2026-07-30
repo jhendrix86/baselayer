@@ -1,0 +1,236 @@
+---
+name: title_generator
+version: 1
+description: Product title generation template with optimization
+category: marketing
+created_at: 2026-05-02
+updated_at: 2026-05-02
+---
+
+Generate an optimized product title for a {{ product_type }} digital product.
+
+## Product Information
+- **Base Title**: {{ base_title }}
+- **Product Type**: {{ product_type }}
+- **Target Audience**: {{ target_audience }}
+- **Brief**: {{ brief }}
+- **Max Length**: {{ max_length }} characters
+
+## Title Generation Guidelines
+
+### 1. Core Requirements
+- Maximum {{ max_length }} characters
+- Benefit-focused language
+- Professional, authoritative tone
+- No clickbait or sensationalism
+- Clear and descriptive
+
+### 2. Optimization Strategy: {{ optimization_strategy }}
+
+{% if optimization_strategy == "benefit_driven" %}
+- Lead with primary benefit
+- Use action-oriented verbs
+- Include outcome-focused language
+- Emphasize transformation or result
+{% endif %}
+
+{% if optimization_strategy == "problem_solution" %}
+- Address specific pain point
+- Position as the solution
+- Use problem-solution language
+- Create urgency and relevance
+{% endif %}
+
+{% if optimization_strategy == "scarcity_urgency" %}
+- Imply limited availability
+- Use time-sensitive language
+- Create FOMO (Fear Of Missing Out)
+- Include urgency triggers
+{% endif %}
+
+{% if optimization_strategy == "social_proof" %}
+- Include social proof elements
+- Use popularity indicators
+- Mention user count or success stories
+- Build trust and credibility
+{% endif %}
+
+{% if optimization_strategy == "risk_reversal" %}
+- Emphasize guarantee or trial
+- Remove purchase barriers
+- Build confidence and trust
+- Address risk concerns
+{% endif %}
+
+{% if optimization_strategy == "premium_positioning" %}
+- Emphasize exclusivity and quality
+- Use premium language
+- Highlight superior features
+- Justify premium pricing
+{% endif %}
+
+{% if optimization_strategy == "value_proposition" %}
+- Focus on ROI and value
+- Use comparison language
+- Highlight savings and efficiency
+- Emphasize long-term benefits
+{% endif %}
+
+### 3. Product Type Specifics
+
+{% if product_type == "pdf_guide" %}
+- Include "Guide", "Handbook", or "Manual"
+- Emphasize comprehensive coverage
+- Use "Complete", "Ultimate", "Essential"
+- Focus on step-by-step nature
+{% endif %}
+
+{% if product_type == "template_pack" %}
+- Include "Templates", "Collection", "Bundle"
+- Emphasize time-saving and efficiency
+- Use "Ready-to-use", "Professional", "Customizable"
+- Focus on variety and versatility
+{% endif %}
+
+{% if product_type == "checklist" %}
+- Include "Checklist", "Tracker", "Organizer"
+- Emphasize completeness and organization
+- Use "Comprehensive", "Essential", "Step-by-step"
+- Focus on productivity and progress
+{% endif %}
+
+{% if product_type == "cheat_sheet" %}
+- Include "Cheat Sheet", "Quick Reference", "Guide"
+- Emphasize speed and accessibility
+- Use "Essential", "Critical", "Time-saving"
+- Focus on key information and shortcuts
+{% endif %}
+
+{% if product_type == "prompt_library" %}
+- Include "Prompts", "Collection", "Library"
+- Emphasize AI optimization and quality
+- Use "Expert", "Professional", "Optimized"
+- Focus on results and performance
+{% endif %}
+
+{% if product_type == "code_snippets" %}
+- Include "Code", "Snippets", "Examples"
+- Emphasize developer productivity
+- Use "Ready-to-use", "Production-ready", "Optimized"
+- Focus on implementation and efficiency
+{% endif %}
+
+{% if product_type == "notion_template" %}
+- Include "Notion", "Template", "System"
+- Emphasize organization and productivity
+- Use "All-in-one", "Comprehensive", "Streamlined"
+- Focus on workflow and automation
+{% endif %}
+
+### 4. Target Audience Considerations
+
+{% if target_audience == "beginner" %}
+- Use simple, accessible language
+- Include "Beginner", "Starter", "Introduction"
+- Focus on learning and guidance
+- Avoid technical jargon
+{% endif %}
+
+{% if target_audience == "intermediate" %}
+- Use balanced language
+- Include "Advanced", "Professional", "Comprehensive"
+- Focus on skill development
+- Include some technical depth
+{% endif %}
+
+{% if target_audience == "advanced" %}
+- Use expert-level language
+- Include "Expert", "Master", "Advanced"
+- Focus on optimization and advanced techniques
+- Include technical depth and nuance
+{% endif %}
+
+## Title Optimization Techniques
+
+### 1. Power Words
+{% if optimization_strategy == "benefit_driven" %}
+Transform, Master, Unlock, Discover, Achieve, Boost, Accelerate, Optimize
+{% endif %}
+
+{% if optimization_strategy == "problem_solution" %}
+Solve, Fix, Eliminate, Overcome, Resolve, Conquer, Address
+{% endif %}
+
+{% if optimization_strategy == "scarcity_urgency" %}
+Limited, Exclusive, Instant, Now, Today, Only, Don't miss
+{% endif %}
+
+{% if optimization_strategy == "social_proof" %}
+Proven, Trusted, Popular, Best-selling, Thousands, Recommended
+{% endif %}
+
+{% if optimization_strategy == "risk_reversal" %}
+Guaranteed, Risk-free, Protected, Safe, Trial, Money-back, No-risk
+{% endif %}
+
+{% if optimization_strategy == "premium_positioning" %}
+Premium, Elite, Professional, Ultimate, Exclusive, Luxury, High-end
+{% endif %}
+
+{% if optimization_strategy == "value_proposition" %}
+Save, Value, ROI, Efficient, Economical, Cost-effective, Investment
+{% endif %}
+
+### 2. Title Structures
+- [Benefit] + [Product Type]: "Transform Your Workflow with Professional Templates"
+- [Problem] + [Solution]: "Stop Wasting Time: Complete Guide to [Topic]"
+- [Audience] + [Product Type]: "Beginner's Guide to [Topic]"
+- [Result] + [Product Type]: "Master [Skill] with Comprehensive [Product Type]"
+- [Time] + [Benefit]: "30-Day [Result] with [Product Type]"
+- [Number] + [Benefit]: "7 Essential [Tools] for [Audience]"
+
+## Quality Requirements
+
+### 1. Content Standards
+- No placeholder text or incomplete thoughts
+- Proper grammar and spelling
+- Clear, concise language
+- Professional, authoritative tone
+- Kade persona compliance
+
+### 2. Technical Requirements
+- Within {{ max_length }} character limit
+- SEO-friendly where applicable
+- Mobile-friendly display
+- Clear value proposition
+- No trademark violations
+
+### 3. Marketing Requirements
+- Benefit-focused language
+- Action-oriented verbs
+- Emotional appeal where appropriate
+- Clear differentiation from competitors
+- Compelling and memorable
+
+## Output Format
+
+Generate 3-5 optimized title options, each with:
+1. Title text (within {{ max_length }} characters)
+2. Brief explanation of optimization approach
+3. Target audience appeal analysis
+4. SEO considerations if applicable
+
+## Final Instructions
+
+1. Generate titles that are compelling and professional
+2. Ensure each title meets the character limit
+3. Maintain Kade persona throughout
+4. Focus on value and benefits for {{ target_audience }}
+5. Use appropriate language for {{ product_type }}
+6. Avoid clickbait or misleading claims
+7. Ensure titles are unique and memorable
+8. Consider SEO and discoverability
+9. Test for clarity and impact
+10. Align with {{ optimization_strategy }} strategy
+
+Remember: The title is the first impression and must immediately communicate value and relevance to the target audience.

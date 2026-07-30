@@ -1,0 +1,142 @@
+---
+name: product_outline
+version: 1
+description: Product structure outline template for AI generation
+category: generation
+created_at: 2026-05-02
+updated_at: 2026-05-02
+---
+
+Generate a comprehensive outline for a {{ product_type }} digital product.
+
+## Product Information
+- **Title**: {{ title }}
+- **Target Audience**: {{ target_audience }}
+- **Word Count Target**: {{ word_count_target }} words
+- **Brief**: {{ brief }}
+
+## Outline Structure
+
+### 1. Introduction ({{ introduction_word_count or 300 }} words)
+- Hook the reader immediately
+- State the problem or opportunity
+- Preview the solution/value proposition
+- Establish credibility and authority
+
+### 2. Problem Statement ({{ problem_word_count or 400 }} words)
+- Clearly define the core problem
+- Explain the pain points and challenges
+- Quantify the impact on the target audience
+- Build emotional connection to the problem
+
+### 3. Solution Overview ({{ solution_word_count or 600 }} words)
+- Present the main solution/approach
+- Explain how it addresses the problem
+- Highlight key benefits and advantages
+- Differentiate from existing alternatives
+
+### 4. Implementation Steps ({{ implementation_word_count or 800 }} words)
+- Provide step-by-step instructions
+- Include practical examples and use cases
+- Add troubleshooting tips and common pitfalls
+- Ensure clarity and actionability
+
+### 5. Examples and Case Studies ({{ examples_word_count or 400 }} words)
+- Real-world application examples
+- Before/after scenarios
+- Success stories and testimonials
+- Variations and adaptations
+
+### 6. Best Practices ({{ best_practices_word_count or 300 }} words)
+- Key principles and guidelines
+- Optimization techniques
+- Common mistakes to avoid
+- Advanced tips for experienced users
+
+### 7. Conclusion ({{ conclusion_word_count or 200 }} words)
+- Summarize key takeaways
+- Reinforce value proposition
+- Call to action for implementation
+- Next steps and additional resources
+
+## Content Guidelines
+
+### Tone and Style
+- Professional and authoritative
+- Clear and concise language
+- Action-oriented and practical
+- No personal anecdotes or identity disclosure
+- Focus on value and outcomes
+
+### Structure Requirements
+- Each section must be complete and comprehensive
+- Logical flow from problem to solution
+- Practical, actionable advice throughout
+- Include specific examples where appropriate
+- Maintain consistency with Kade persona
+
+### Quality Standards
+- No placeholder text or incomplete sections
+- Proper grammar and spelling
+- Consistent formatting and structure
+- Meets specified word count targets
+- Provides genuine value to reader
+
+## Special Instructions for {{ product_type }}
+
+{% if product_type == "pdf_guide" %}
+- Focus on comprehensive, in-depth content
+- Include detailed explanations and examples
+- Provide step-by-step guidance
+- Add practical exercises or worksheets if applicable
+{% endif %}
+
+{% if product_type == "template_pack" %}
+- Emphasize ease of use and customization
+- Include clear instructions for each template
+- Provide examples of filled templates
+- Add tips for adaptation and modification
+{% endif %}
+
+{% if product_type == "checklist" %}
+- Make items specific and measurable
+- Include progress tracking elements
+- Add context and usage instructions
+- Provide completion criteria
+{% endif %}
+
+{% if product_type == "cheat_sheet" %}
+- Focus on quick reference information
+- Use concise, scannable format
+- Include keyboard shortcuts and commands
+- Add essential formulas and references
+{% endif %}
+
+{% if product_type == "prompt_library" %}
+- Provide context for each prompt
+- Include usage examples and variations
+- Add tips for prompt optimization
+- Categorize by use case or complexity
+{% endif %}
+
+{% if product_type == "code_snippets" %}
+- Include working, tested code examples
+- Add comments and explanations
+- Provide installation/setup instructions
+- Include error handling and debugging tips
+{% endif %}
+
+{% if product_type == "notion_template" %}
+- Focus on Notion-specific features
+- Include database structure and relationships
+- Provide setup and customization instructions
+- Add automation and integration tips
+{% endif %}
+
+## Final Requirements
+- Total word count: {{ word_count_target }} words
+- All sections must be complete
+- Professional, authoritative tone maintained
+- No personal anecdotes or AI identity disclosure
+- Practical, actionable content throughout
+- Meets all quality and structure requirements
