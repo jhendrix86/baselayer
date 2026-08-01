@@ -4,10 +4,11 @@ BaseLayer Core Loop API - Monitoring
 REST API endpoints for workflow monitoring and real-time metrics.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from structlog import get_logger

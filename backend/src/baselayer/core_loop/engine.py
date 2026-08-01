@@ -19,8 +19,10 @@ from ..models.core_loop import (
     Workflow, WorkflowExecution, WorkflowStep, WorkflowStepExecution,
     WorkflowStatus, WorkflowPriority, StepType
 )
+from ..models.user import User
 from .exceptions import (
     WorkflowEngineError,
+    WorkflowExecutionError,
     WorkflowValidationError,
     WorkflowDependencyError,
     WorkflowTimeoutError,
