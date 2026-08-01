@@ -20,7 +20,7 @@ from structlog import get_logger
 
 from .config import get_settings
 from .database import get_db_session
-from ..models.user import User, UserRole, Permission
+from ..models.user import User, UserRole
 
 logger = get_logger(__name__)
 

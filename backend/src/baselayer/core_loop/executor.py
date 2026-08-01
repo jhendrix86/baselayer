@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional, Callable, Awaitable
 
 from structlog import get_logger
 
-from ..models.core_loop import WorkflowStepExecution, TaskStatus, StepType
+from ..models.core_loop import WorkflowStepExecution, StepType
 from .exceptions import WorkflowExecutionError, WorkflowTimeoutError
 
 logger = get_logger(__name__)
