@@ -12,7 +12,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict
 
-from sqlalchemy import Boolean, String, Text, Numeric, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import Boolean, Integer, String, Text, Numeric, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 
@@ -214,7 +214,7 @@ class RevenueStream(BaseModel):
     created_by_user = relationship(
         "User",
         back_populates="revenue_streams",
-        foreign_keys=[BaseModel.created_by],
+        foreign_keys="RevenueStream.created_by",
         lazy="select"
     )
     
@@ -487,9 +487,9 @@ class RevenueTransaction(BaseModel):
     )
     
     retry_count: Mapped[int] = mapped_column(
-        String(2),
+        Integer,
         nullable=False,
-        default="0",
+        default=0,
         comment="Number of retry attempts"
     )
     

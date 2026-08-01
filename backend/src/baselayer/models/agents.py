@@ -192,7 +192,7 @@ class Agent(BaseModel):
     created_by_user = relationship(
         "User",
         back_populates="agents",
-        foreign_keys=[BaseModel.created_by],
+        foreign_keys="Agent.created_by",
         lazy="select"
     )
     

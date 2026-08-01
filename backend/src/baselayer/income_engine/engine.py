@@ -8,6 +8,7 @@ with automated billing and compliance tracking.
 import asyncio
 import uuid
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -194,7 +195,7 @@ class RevenueEngine:
                 customer_id=customer_id,
                 payment_method=payment_method,
                 status=TransactionStatus.PENDING,
-                metadata=metadata or {},
+                metadata_=metadata or {},
                 created_by=created_by
             )
             
@@ -297,9 +298,12 @@ class RevenueEngine:
             RevenueValidationError: If validation fails
         """
         errors = []
-        
-        # Amount validation
-        if amount < 0:
+
+        # Amount validation — refunds and downgrade/cancellation proration
+        # legitimately carry a negative amount; only reject unexplained ones.
+        transaction_type = (metadata or {}).get("transaction_type", "")
+        is_credit = "refund" in transaction_type or "proration" in transaction_type
+        if amount < 0 and not is_credit:
             errors.append("Transaction amount cannot be negative")
         
         # Revenue stream status
@@ -383,14 +387,18 @@ class RevenueEngine:
             float: Calculated amount
         """
         if revenue_stream.pricing_model == PricingModel.FIXED:
-            return revenue_stream.base_amount
-        
+            # Every caller (initial charge, proration, refund) already computes
+            # the exact amount to charge — trust it instead of re-charging the
+            # full base_amount regardless of context (was double-charging plan
+            # upgrades and discarding proration/refund adjustments entirely).
+            return input_amount
+
         elif revenue_stream.pricing_model == PricingModel.USAGE_BASED:
             usage_limits = revenue_stream.usage_limits or {}
             pricing_tiers = usage_limits.get("pricing_tiers", [])
-            
+
             if not pricing_tiers:
-                return revenue_stream.base_amount * input_amount
+                return revenue_stream.base_amount * Decimal(str(input_amount))
             
             # Find applicable tier
             usage_units = metadata.get("usage_units", input_amount) if metadata else input_amount
@@ -437,8 +445,21 @@ class RevenueEngine:
         """
         # Simulate payment processing
         # In real implementation, this would integrate with payment providers
+        # (see income_engine/providers.py — built but not yet wired in here)
         await asyncio.sleep(0.1)
-        
+
+        # Error-placeholder transactions (created by billing.py when the real
+        # billing attempt already failed) must not be recorded as completed —
+        # that was silently breaking failed_transactions accounting.
+        if (transaction.metadata_ or {}).get("error"):
+            transaction.status = TransactionStatus.FAILED
+            transaction.processed_at = datetime.utcnow()
+
+            async with get_db_session() as session:
+                session.add(transaction)
+                await session.commit()
+            return
+
         # Update transaction status
         transaction.status = TransactionStatus.COMPLETED
         transaction.processed_at = datetime.utcnow()
@@ -463,25 +484,30 @@ class RevenueEngine:
             # Get or create metrics for current period
             current_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             
+            # Lock the row for the duration of this transaction so concurrent
+            # billing runs on the same stream/period serialize instead of
+            # racing on the read-modify-write below (was silently dropping
+            # increments under concurrent billing).
             result = await session.execute(
                 select(RevenueMetrics).where(
                     RevenueMetrics.revenue_stream_id == revenue_stream_id,
                     RevenueMetrics.period_start == current_month
-                )
+                ).with_for_update()
             )
             metrics = result.scalar_one_or_none()
-            
+
             if not metrics:
                 metrics = RevenueMetrics(
                     revenue_stream_id=revenue_stream_id,
                     period_start=current_month,
                     period_end=current_month + timedelta(days=32) - timedelta(seconds=1),
-                    total_revenue=0.0,
+                    total_revenue=Decimal("0"),
                     total_transactions=0,
                     successful_transactions=0,
                     failed_transactions=0
                 )
                 session.add(metrics)
+                await session.flush()
             
             # Update metrics
             metrics.total_revenue += transaction.amount

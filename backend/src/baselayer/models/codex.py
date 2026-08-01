@@ -240,7 +240,7 @@ class KnowledgeEntry(BaseModel):
     created_by_user = relationship(
         "User",
         back_populates="knowledge_entries",
-        foreign_keys=[BaseModel.created_by],
+        foreign_keys="KnowledgeEntry.created_by",
         lazy="select"
     )
     

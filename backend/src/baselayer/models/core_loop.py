@@ -197,7 +197,7 @@ class Workflow(BaseModel):
     created_by_user = relationship(
         "User",
         back_populates="workflows",
-        foreign_keys=[BaseModel.created_by],
+        foreign_keys="Workflow.created_by",
         lazy="select"
     )
     

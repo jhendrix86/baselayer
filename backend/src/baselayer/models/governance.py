@@ -234,7 +234,7 @@ class GovernanceRule(BaseModel):
     created_by_user = relationship(
         "User",
         back_populates="governance_rules",
-        foreign_keys=[BaseModel.created_by],
+        foreign_keys="GovernanceRule.created_by",
         lazy="select"
     )
     

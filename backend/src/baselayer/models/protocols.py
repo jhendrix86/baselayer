@@ -244,7 +244,7 @@ class Protocol(BaseModel):
     created_by_user = relationship(
         "User",
         back_populates="protocols",
-        foreign_keys=[BaseModel.created_by],
+        foreign_keys="Protocol.created_by",
         lazy="select"
     )
     

@@ -215,7 +215,7 @@ class OutputTemplate(BaseModel):
     created_by_user = relationship(
         "User",
         back_populates="output_templates",
-        foreign_keys=[BaseModel.created_by],
+        foreign_keys="OutputTemplate.created_by",
         lazy="select"
     )
     
