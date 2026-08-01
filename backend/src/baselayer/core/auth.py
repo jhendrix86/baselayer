@@ -159,29 +159,52 @@ class PasswordManager:
 class PermissionManager:
     """Permission and role management."""
     
-    # Role hierarchy (higher number = more permissions)
+    # Role hierarchy (higher number = more permissions).
+    # VIEWER < AGENT < OPERATOR < ADMIN, matching models/user.py's actual
+    # UserRole values -- this used to reference GUEST/USER/SUPER_ADMIN/SYSTEM,
+    # which don't exist on the model and crashed at import time.
     ROLE_HIERARCHY = {
-        UserRole.GUEST: 0,
-        UserRole.USER: 1,
-        UserRole.ADMIN: 2,
-        UserRole.SUPER_ADMIN: 3,
-        UserRole.SYSTEM: 4
+        UserRole.VIEWER: 0,
+        UserRole.AGENT: 1,
+        UserRole.OPERATOR: 2,
+        UserRole.ADMIN: 3
     }
-    
+
     # Default permissions for each role
     DEFAULT_PERMISSIONS = {
-        UserRole.GUEST: [
-            "read:public",
-            "read:own_profile"
+        UserRole.VIEWER: [
+            "read:own",
+            "read:shared",
+            "read:knowledge",
+            "read:workflows",
+            "read:agents",
+            "read:governance",
+            "read:outputs"
         ],
-        UserRole.USER: [
+        UserRole.AGENT: [
             "read:own",
             "write:own",
             "read:shared",
             "create:workflows",
             "execute:workflows",
             "read:knowledge",
-            "create:knowledge"
+            "create:knowledge",
+            "create:outputs"
+        ],
+        UserRole.OPERATOR: [
+            "read:all",
+            "read:own",
+            "write:own",
+            "read:shared",
+            "create:workflows",
+            "execute:workflows",
+            "manage:workflows",
+            "manage:agents",
+            "read:knowledge",
+            "create:knowledge",
+            "manage:knowledge",
+            "read:governance",
+            "manage:outputs"
         ],
         UserRole.ADMIN: [
             "read:all",
@@ -190,23 +213,10 @@ class PermissionManager:
             "manage:users",
             "manage:workflows",
             "manage:agents",
-            "manage:system"
-        ],
-        UserRole.SUPER_ADMIN: [
-            "read:all",
-            "write:all",
-            "delete:all",
-            "manage:users",
-            "manage:roles",
             "manage:system",
             "manage:governance",
-            "manage:infrastructure"
-        ],
-        UserRole.SYSTEM: [
-            "read:all",
-            "write:all",
-            "delete:all",
-            "manage:everything"
+            "manage:knowledge",
+            "manage:outputs"
         ]
     }
     

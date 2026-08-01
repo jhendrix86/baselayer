@@ -35,7 +35,7 @@ class TestAuthentication:
         assert data["token_type"] == "bearer"
         assert "user" in data
         assert data["user"]["email"] == "test@example.com"
-        assert data["user"]["role"] == "user"
+        assert data["user"]["role"] == "operator"
     
     @pytest.mark.asyncio
     @pytest.mark.api
@@ -63,7 +63,7 @@ class TestAuthentication:
             email="inactive@example.com",
             name="Inactive User",
             password_hash=password_manager.hash_password("password123"),
-            role=UserRole.USER,
+            role=UserRole.OPERATOR,
             is_active=False
         )
         
@@ -89,7 +89,7 @@ class TestAuthentication:
         data = response.json()
         
         assert data["email"] == "test@example.com"
-        assert data["role"] == "user"
+        assert data["role"] == "operator"
         assert data["is_active"] is True
     
     @pytest.mark.asyncio
@@ -206,7 +206,7 @@ class TestAuthentication:
         assert "role" in data
         assert "permissions" in data
         assert "role_level" in data
-        assert data["role"] == "user"
+        assert data["role"] == "operator"
         assert isinstance(data["permissions"], list)
     
     @pytest.mark.asyncio
@@ -255,16 +255,16 @@ class TestAuthorization:
         from baselayer.core.auth import PermissionManager
         
         # Test role hierarchy
-        assert PermissionManager.role_can_manage(UserRole.ADMIN, UserRole.USER)
-        assert PermissionManager.role_can_manage(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-        assert not PermissionManager.role_can_manage(UserRole.USER, UserRole.ADMIN)
-        
+        assert PermissionManager.role_can_manage(UserRole.ADMIN, UserRole.OPERATOR)
+        assert PermissionManager.role_can_manage(UserRole.OPERATOR, UserRole.AGENT)
+        assert not PermissionManager.role_can_manage(UserRole.OPERATOR, UserRole.ADMIN)
+
         # Test permissions
-        user_permissions = PermissionManager.get_role_permissions(UserRole.USER)
+        operator_permissions = PermissionManager.get_role_permissions(UserRole.OPERATOR)
         admin_permissions = PermissionManager.get_role_permissions(UserRole.ADMIN)
-        
-        assert len(admin_permissions) > len(user_permissions)
-        assert "read:own" in user_permissions
+
+        assert len(admin_permissions) > len(operator_permissions)
+        assert "read:own" in operator_permissions
         assert "manage:users" in admin_permissions
 
 
@@ -345,7 +345,7 @@ class TestUserRegistration:
             "password": "newpassword123",
             "confirm_password": "newpassword123",
             "name": "New User",
-            "role": "user"
+            "role": "operator"
         }
         
         response = await client.post("/api/v1/auth/register", json=user_data, headers=admin_headers)
@@ -355,7 +355,7 @@ class TestUserRegistration:
         
         assert data["email"] == "newuser@example.com"
         assert data["name"] == "New User"
-        assert data["role"] == "user"
+        assert data["role"] == "operator"
         assert data["is_active"] is True
     
     @pytest.mark.asyncio
@@ -367,7 +367,7 @@ class TestUserRegistration:
             "password": "newpassword123",
             "confirm_password": "newpassword123",
             "name": "Duplicate User",
-            "role": "user"
+            "role": "operator"
         }
         
         response = await client.post("/api/v1/auth/register", json=user_data, headers=admin_headers)
@@ -384,7 +384,7 @@ class TestUserRegistration:
             "password": "123",  # Too short
             "confirm_password": "123",
             "name": "Weak Password User",
-            "role": "user"
+            "role": "operator"
         }
         
         response = await client.post("/api/v1/auth/register", json=user_data, headers=admin_headers)
@@ -401,7 +401,7 @@ class TestUserRegistration:
             "password": "password123",
             "confirm_password": "password123",
             "name": "Unauthorized User",
-            "role": "user"
+            "role": "operator"
         }
         
         response = await client.post("/api/v1/auth/register", json=user_data)

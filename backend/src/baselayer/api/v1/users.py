@@ -234,14 +234,6 @@ async def create_user(
             detail="Password must be at least 8 characters long"
         )
     
-    # Check role management permissions
-    if not require_min_role(UserRole.SUPER_ADMIN)(current_user):
-        if user_data.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.SYSTEM]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions to create admin users"
-            )
-    
     # Create new user
     new_user = User(
         email=user_data.email,
@@ -313,23 +305,6 @@ async def update_user(
             detail="User not found"
         )
     
-    # Check role management permissions
-    if user_data.role and user_data.role != user.role:
-        if not require_min_role(UserRole.SUPER_ADMIN)(current_user):
-            if user_data.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.SYSTEM]:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Insufficient permissions to assign admin roles"
-                )
-        
-        # Cannot change role of users with equal or higher role (except super admin)
-        if current_user.role != UserRole.SUPER_ADMIN:
-            if not require_min_role(current_user.role)(user):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Cannot modify users with equal or higher role"
-                )
-    
     # Prevent self-deactivation
     if str(user.id) == str(current_user.id) and user_data.is_active is False:
         raise HTTPException(
@@ -389,7 +364,7 @@ async def update_user(
 @router.delete("/{user_id}")
 async def delete_user(
     user_id: str,
-    current_user: User = Depends(require_min_role(UserRole.SUPER_ADMIN)),
+    current_user: User = Depends(require_min_role(UserRole.ADMIN)),
     db: AsyncSession = Depends(get_db_session)
 ) -> Dict[str, str]:
     """
@@ -397,9 +372,9 @@ async def delete_user(
     
     Args:
         user_id: User ID
-        current_user: Current authenticated user (super admin)
+        current_user: Current authenticated user (admin)
         db: Database session
-        
+
     Returns:
         Dict[str, str]: Deletion confirmation
     """
@@ -429,13 +404,6 @@ async def delete_user(
             detail="Cannot delete your own account"
         )
     
-    # Cannot delete system users
-    if user.role == UserRole.SYSTEM:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete system users"
-        )
-    
     # Soft delete by deactivating
     user.is_active = False
     user.updated_at = datetime.utcnow()
@@ -443,7 +411,7 @@ async def delete_user(
     await db.commit()
     
     logger.warning(
-        "User deleted by super admin",
+        "User deleted by admin",
         user_id=str(user.id),
         email=user.email,
         deleted_by=str(current_user.id)
@@ -488,8 +456,9 @@ async def reset_user_password(
             detail="User not found"
         )
     
-    # Check permissions
-    if current_user.role == UserRole.ADMIN and user.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.SYSTEM]:
+    # Admins can't reset another admin's password -- only their own account
+    # management flow (change-password) applies to peers at the top role.
+    if user.role == UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to reset admin passwords"

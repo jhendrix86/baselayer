@@ -84,7 +84,7 @@ class RegisterRequest(BaseModel):
     password: str
     confirm_password: str
     name: str
-    role: UserRole = UserRole.USER
+    role: UserRole = UserRole.VIEWER
 
 
 class UserResponse(BaseModel):
