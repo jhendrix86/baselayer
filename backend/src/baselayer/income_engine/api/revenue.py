@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from structlog import get_logger
 
-from ...core.database import get_db_session
+from ...core.database import get_db_session, db_session_context
 from ...models.income_engine import (
     RevenueStream, RevenueTransaction, RevenueMetrics,
     RevenueType, RevenueStatus, PricingModel, TransactionStatus
@@ -546,7 +546,7 @@ async def activate_revenue_stream(
         return {"message": "Revenue stream is already active"}
     
     # Update status
-    async with get_db_session() as db:
+    async with db_session_context() as db:
         stream.status = RevenueStatus.ACTIVE
         stream.updated_by = current_user.id
         db.add(stream)

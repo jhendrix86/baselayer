@@ -16,7 +16,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from baselayer.core.config import get_settings
-from baselayer.core.database import engine, Base
+from baselayer.core.database import create_tables, close_database
 from baselayer.core.logging import setup_logging
 from baselayer.core.middleware import (
     RequestIDMiddleware,
@@ -26,6 +26,14 @@ from baselayer.core.middleware import (
 from baselayer.api.v1.router import api_v1_router
 from baselayer.api.health import health_router
 from baselayer.api.metrics import metrics_router
+from baselayer.income_engine.engine import RevenueEngine
+from baselayer.income_engine.billing import BillingEngine
+from baselayer.income_engine.subscriptions import SubscriptionManager
+from baselayer.income_engine.providers import PaymentProviderManager
+from baselayer.income_engine.api import revenue as income_engine_revenue
+from baselayer.income_engine.api import billing as income_engine_billing
+from baselayer.income_engine.api import subscriptions as income_engine_subscriptions
+from baselayer.income_engine.api import providers as income_engine_providers
 
 # Setup structured logging
 setup_logging()
@@ -46,18 +54,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Starting BaseLayer API server", version="0.1.0")
     
     # Initialize database tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    await create_tables()
     logger.info("Database tables initialized")
-    
+
+    # Initialize the income engine subsystem. Without this, every
+    # income_engine/api/*.py endpoint's get_x_engine() dependency raises
+    # 500 "not initialized" - the module-level globals it reads were never
+    # set anywhere before this.
+    revenue_engine = RevenueEngine()
+    income_engine_revenue.revenue_engine = revenue_engine
+    income_engine_billing.billing_engine = BillingEngine(revenue_engine)
+    income_engine_subscriptions.subscription_manager = SubscriptionManager(revenue_engine)
+    income_engine_providers.provider_manager = PaymentProviderManager()
+    logger.info("Income engine initialized")
+
     # Initialize Redis connection
     # This will be implemented in Phase 4
-    
+
     yield
     
     # Shutdown
     logger.info("Shutting down BaseLayer API server")
-    await engine.dispose()
+    await close_database()
     logger.info("Database connections closed")
 
 

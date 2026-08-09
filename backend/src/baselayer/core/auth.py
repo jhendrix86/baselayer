@@ -98,19 +98,21 @@ class TokenManager:
     def verify_token(self, token: str, token_type: str = "access") -> Dict[str, Any]:
         """Verify and decode JWT token."""
         try:
+            # jose.jwt.decode already validates "exp" internally using a
+            # correct, timezone-safe comparison. A manual re-check used to
+            # live here comparing datetime.utcnow().timestamp() against the
+            # raw exp claim - .timestamp() on a naive datetime interprets it
+            # as *local* time, not UTC, so on any server not in UTC this
+            # either rejected fresh tokens immediately (server behind UTC)
+            # or accepted genuinely expired ones (server ahead of UTC).
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
-            
+
             # Check token type
             if payload.get("type") != token_type:
                 raise AuthenticationError(f"Invalid token type: expected {token_type}")
-            
-            # Check expiration
-            exp = payload.get("exp")
-            if exp is None or datetime.utcnow().timestamp() > exp:
-                raise AuthenticationError("Token has expired")
-            
+
             return payload
-            
+
         except JWTError as e:
             raise AuthenticationError(f"Invalid token: {str(e)}")
     
@@ -393,7 +395,7 @@ class AuthenticationService:
                 return None
             
             # Update last login
-            user.last_login_at = datetime.utcnow()
+            user.last_login = datetime.utcnow()
             await db.commit()
             
             return user
@@ -413,7 +415,7 @@ class AuthenticationService:
             "sub": str(user.id),
             "email": user.email,
             "role": user.role.value,
-            "name": user.name
+            "name": user.full_name
         }
         access_token = self.token_manager.create_access_token(access_token_data)
         

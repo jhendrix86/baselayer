@@ -10,11 +10,12 @@ from typing import Any, Dict
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator, VARCHAR
 
 import uuid
+
+from baselayer.core.database import Base
 
 
 # Custom UUID type for better compatibility
@@ -32,10 +33,6 @@ class UUIDType(TypeDecorator):
         if value is None:
             return value
         return uuid.UUID(value)
-
-
-# Base class for all models
-Base = declarative_base()
 
 
 class BaseModel(Base):

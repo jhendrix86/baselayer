@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.income_engine import (
     RevenueStream, RevenueTransaction, RevenueMetrics,
     RevenueType, RevenueStatus, TransactionStatus
@@ -147,7 +147,7 @@ async def update_revenue_metrics(ctx: Dict[str, Any]) -> Dict[str, Any]:
     
     try:
         # Update metrics for all active streams
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(RevenueStream).where(
                     RevenueStream.status == RevenueStatus.ACTIVE,
@@ -257,7 +257,7 @@ async def generate_revenue_forecasts(ctx: Dict[str, Any]) -> Dict[str, Any]:
     
     try:
         # Generate forecasts for all active streams
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(RevenueStream).where(
                     RevenueStream.status == RevenueStatus.ACTIVE,
@@ -321,7 +321,7 @@ async def cleanup_old_transactions(ctx: Dict[str, Any]) -> Dict[str, Any]:
     cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
     
     try:
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Soft delete old transactions
             result = await session.execute(
                 select(RevenueTransaction).where(

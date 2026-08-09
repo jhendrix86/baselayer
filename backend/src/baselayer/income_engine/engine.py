@@ -16,7 +16,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.income_engine import (
     RevenueStream, RevenueTransaction, RevenueMetrics,
     RevenueType, RevenueStatus, PricingModel, TransactionStatus
@@ -97,7 +97,7 @@ class RevenueEngine:
             "created_by": created_by
         })
         
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Create revenue stream
             revenue_stream = RevenueStream(
                 name=name,
@@ -160,7 +160,7 @@ class RevenueEngine:
         revenue_stream = self.active_streams.get(revenue_stream_id)
         if not revenue_stream:
             # Load from database
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(RevenueStream).where(
                         RevenueStream.id == uuid.UUID(revenue_stream_id),
@@ -185,7 +185,7 @@ class RevenueEngine:
             revenue_stream, amount, metadata
         )
         
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Create transaction
             transaction = RevenueTransaction(
                 revenue_stream_id=revenue_stream.id,
@@ -353,7 +353,7 @@ class RevenueEngine:
         
         # Check user permissions
         if created_by:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(User).where(User.id == created_by)
                 )
@@ -455,7 +455,7 @@ class RevenueEngine:
             transaction.status = TransactionStatus.FAILED
             transaction.processed_at = datetime.utcnow()
 
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 session.add(transaction)
                 await session.commit()
             return
@@ -464,7 +464,7 @@ class RevenueEngine:
         transaction.status = TransactionStatus.COMPLETED
         transaction.processed_at = datetime.utcnow()
         
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             session.add(transaction)
             await session.commit()
     
@@ -480,7 +480,7 @@ class RevenueEngine:
             revenue_stream_id: Revenue stream ID
             transaction: Transaction to include in metrics
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get or create metrics for current period
             current_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             
@@ -571,7 +571,7 @@ class RevenueEngine:
             return self.active_streams[stream_id]
         
         # Load from database
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(RevenueStream).where(
                     RevenueStream.id == uuid.UUID(stream_id),
@@ -604,7 +604,7 @@ class RevenueEngine:
         Returns:
             List[RevenueStream]: List of revenue streams
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(RevenueStream).where(RevenueStream.deleted_at.is_(None))
             
             if status:
@@ -642,7 +642,7 @@ class RevenueEngine:
         Returns:
             List[RevenueMetrics]: List of metrics
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(RevenueMetrics).where(
                     RevenueMetrics.revenue_stream_id == uuid.UUID(stream_id),
@@ -667,7 +667,7 @@ class RevenueEngine:
         Returns:
             bool: True if deactivated successfully
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(RevenueStream).where(
                     RevenueStream.id == uuid.UUID(stream_id),

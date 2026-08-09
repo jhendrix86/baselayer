@@ -4,6 +4,7 @@ BaseLayer Database Configuration
 Handles SQLAlchemy async database setup and connection management.
 """
 
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
@@ -66,10 +67,32 @@ def get_session_maker() -> async_sessionmaker[AsyncSession]:
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    Get database session for dependency injection.
-    
+    Get database session for FastAPI dependency injection (Depends(get_db_session)).
+
+    This is a plain async generator, not an async context manager - FastAPI
+    handles the yield/cleanup protocol itself for generator-based
+    dependencies. Calling `async with get_db_session()` directly (as several
+    income_engine modules used to) fails since a bare async generator has no
+    __aenter__/__aexit__. Code that needs a session outside of a FastAPI
+    dependency (background tasks, engine internals) should use
+    db_session_context() below instead.
+
     Yields:
         AsyncSession: Database session
+    """
+    async with get_session_maker()() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
+@asynccontextmanager
+async def db_session_context() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Get a database session as a real async context manager, for use outside
+    FastAPI's dependency injection (background tasks, engine/manager
+    internals that open their own session rather than receiving one).
     """
     async with get_session_maker()() as session:
         try:

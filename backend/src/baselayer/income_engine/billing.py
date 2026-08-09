@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.income_engine import (
     RevenueStream, RevenueTransaction, RevenueMetrics,
     RevenueType, RevenueStatus, TransactionStatus
@@ -81,7 +81,7 @@ class BillingEngine:
     
     async def schedule_billing_cycles(self) -> None:
         """Schedule all active billing cycles."""
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get all active subscription revenue streams
             result = await session.execute(
                 select(RevenueStream).where(
@@ -588,7 +588,7 @@ class BillingEngine:
         Returns:
             Dict[str, Any]: Billing summary
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get total revenue
             result = await session.execute(
                 select(
@@ -663,7 +663,7 @@ class BillingEngine:
         Returns:
             Dict[str, Any]: Retry results
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get failed transactions
             result = await session.execute(
                 select(RevenueTransaction).where(

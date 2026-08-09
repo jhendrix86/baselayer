@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func, and_, or_
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.income_engine import (
     RevenueStream, RevenueTransaction, RevenueMetrics,
     RevenueType, RevenueStatus, TransactionStatus
@@ -64,7 +64,7 @@ class RevenueAnalytics:
             if cached_data:
                 return cached_data
         
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Build time grouping
             if group_by == "day":
                 time_format = func.date_trunc('day', RevenueTransaction.created_at)
@@ -154,7 +154,7 @@ class RevenueAnalytics:
         Returns:
             List[Dict[str, Any]]: Revenue by stream
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(
                     RevenueStream.id,
@@ -206,7 +206,7 @@ class RevenueAnalytics:
         Returns:
             List[Dict[str, Any]]: Customer analytics
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(
                     RevenueTransaction.customer_id,
@@ -375,7 +375,7 @@ class RevenueAnalytics:
         end_date: datetime
     ) -> List[Dict[str, Any]]:
         """Get historical revenue data for a stream."""
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(
                     func.date_trunc('day', RevenueTransaction.created_at).label('date'),
@@ -407,7 +407,7 @@ class RevenueAnalytics:
         end_date: datetime
     ) -> List[Dict[str, Any]]:
         """Get total historical revenue data."""
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(
                     func.date_trunc('day', RevenueTransaction.created_at).label('date'),
@@ -623,7 +623,7 @@ class RevenueAnalytics:
         Returns:
             Dict[str, Any]: Performance metrics
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Transaction metrics
             result = await session.execute(
                 select(

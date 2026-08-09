@@ -134,11 +134,11 @@ async def login(
         user_data = {
             "id": str(user.id),
             "email": user.email,
-            "name": user.name,
+            "name": user.full_name,
             "role": user.role.value,
             "is_active": user.is_active,
             "created_at": user.created_at,
-            "last_login_at": user.last_login_at
+            "last_login_at": user.last_login
         }
         
         logger.info(
@@ -236,11 +236,11 @@ async def get_current_user_info(
     return UserResponse(
         id=str(current_user.id),
         email=current_user.email,
-        name=current_user.name,
+        name=current_user.full_name,
         role=current_user.role.value,
         is_active=current_user.is_active,
         created_at=current_user.created_at,
-        last_login_at=current_user.last_login_at
+        last_login_at=current_user.last_login
     )
 
 
@@ -425,34 +425,39 @@ async def register_user(
             detail="Password must be at least 8 characters long"
         )
     
-    # Create new user
+    # Create new user. User.username is a required, unique column with no
+    # equivalent field on RegisterRequest - derive it from the email's
+    # local part (collisions across e.g. john@gmail.com / john@yahoo.com
+    # aren't handled here; there's no username-availability flow to fall
+    # back to yet).
     new_user = User(
+        username=user_data.email.split("@")[0],
         email=user_data.email,
-        name=user_data.name,
+        full_name=user_data.name,
         password_hash=auth_service.password_manager.hash_password(user_data.password),
         role=user_data.role,
         is_active=True
     )
-    
+
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
-    
+
     logger.info(
         "User registered successfully",
         user_id=str(new_user.id),
         email=new_user.email,
         role=new_user.role.value
     )
-    
+
     return UserResponse(
         id=str(new_user.id),
         email=new_user.email,
-        name=new_user.name,
+        name=new_user.full_name,
         role=new_user.role.value,
         is_active=new_user.is_active,
         created_at=new_user.created_at,
-        last_login_at=new_user.last_login_at
+        last_login_at=new_user.last_login
     )
 
 
