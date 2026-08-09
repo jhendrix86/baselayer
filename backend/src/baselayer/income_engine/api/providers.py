@@ -57,6 +57,20 @@ async def get_provider_status(
     return manager.get_provider_status()
 
 
+@router.get("/payments/{transaction_id}", response_model=Dict[str, Any])
+async def get_payment_status(
+    transaction_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get the status of a previously processed payment."""
+    manager = get_provider_manager()
+
+    try:
+        return await manager.get_payment_status(transaction_id)
+    except PaymentError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 @router.post("/payments", response_model=Dict[str, Any])
 async def process_payment(
     request: ProcessPaymentRequest,

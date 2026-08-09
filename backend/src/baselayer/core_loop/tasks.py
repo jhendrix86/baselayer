@@ -166,12 +166,12 @@ async def cleanup_old_executions(ctx: Dict[str, Any]) -> Dict[str, Any]:
                 "retention_days": retention_days
             }
             
-        except Exception as e:
-            logger.error(
-                "Cleanup task failed",
-                error=str(e)
-            )
-            raise
+    except Exception as e:
+        logger.error(
+            "Cleanup task failed",
+            error=str(e)
+        )
+        raise
 
 
 async def update_workflow_metrics(ctx: Dict[str, Any]) -> Dict[str, Any]:

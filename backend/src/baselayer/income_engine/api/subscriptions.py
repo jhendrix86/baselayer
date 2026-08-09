@@ -54,6 +54,11 @@ class PauseSubscriptionRequest(BaseModel):
     pause_duration_days: int = 30
 
 
+class UpdatePlanRequest(BaseModel):
+    new_plan_tier: str
+    effective_date: Optional[datetime] = None
+
+
 @router.post("", response_model=Dict[str, Any])
 async def create_subscription(
     request: CreateSubscriptionRequest,
@@ -112,6 +117,38 @@ async def list_customer_subscriptions(
     manager = get_subscription_manager()
 
     return await manager.list_customer_subscriptions(customer_id, status=status)
+
+
+@router.put("/{customer_id}/{stream_id}", response_model=Dict[str, Any])
+async def update_subscription_plan(
+    customer_id: str,
+    stream_id: str,
+    request: UpdatePlanRequest,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Change a subscription's plan tier, with proration."""
+    manager = get_subscription_manager()
+
+    try:
+        result = await manager.update_subscription_plan(
+            customer_id=customer_id,
+            stream_id=stream_id,
+            new_plan_tier=request.new_plan_tier,
+            effective_date=request.effective_date,
+        )
+
+        logger.info(
+            "Subscription plan updated via API",
+            customer_id=customer_id,
+            stream_id=stream_id,
+            new_plan_tier=request.new_plan_tier,
+            user_id=str(current_user.id),
+        )
+
+        return result
+
+    except SubscriptionError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/{customer_id}/{stream_id}/cancel", response_model=Dict[str, Any])
