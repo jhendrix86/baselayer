@@ -7,6 +7,7 @@ execution management, and state tracking.
 
 import asyncio
 import uuid
+import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Set
 
@@ -28,6 +29,7 @@ from .exceptions import (
     WorkflowTimeoutError,
     WorkflowGovernanceError
 )
+from .failure_emitter import FailureEventEmitter, FailureSeverity, FailureType
 
 logger = get_logger(__name__)
 
@@ -45,6 +47,20 @@ class WorkflowEngine:
         self.execution_queue: asyncio.Queue = asyncio.Queue()
         self.max_concurrent_executions: int = 4  # Optimized for i5-2400
         self.execution_semaphore = asyncio.Semaphore(self.max_concurrent_executions)
+
+        # Initialize failure event emitter
+        rabbitmq_url = os.getenv("RABBITMQ_URL")
+        self.failure_emitter = FailureEventEmitter(rabbitmq_url)
+
+    async def connect(self):
+        """Connect to external services"""
+        await self.failure_emitter.connect()
+        logger.info("workflow_engine_connected")
+
+    async def disconnect(self):
+        """Disconnect from external services"""
+        await self.failure_emitter.disconnect()
+        logger.info("workflow_engine_disconnected")
     
     async def start_workflow(
         self,
@@ -219,7 +235,7 @@ class WorkflowEngine:
     async def execute_workflow(self, execution: WorkflowExecution) -> None:
         """
         Execute a workflow with dependency resolution.
-        
+
         Args:
             execution: Workflow execution record
         """
@@ -232,8 +248,32 @@ class WorkflowEngine:
                     execution_id=execution.execution_id,
                     error=str(e)
                 )
+
+                # Emit failure event
+                failure_type, severity = FailureEventEmitter.classify_exception(e)
+                import traceback
+                stack_trace = traceback.format_exc()
+
+                await self.failure_emitter.emit_failure_detected(
+                    failure_id=execution.execution_id,
+                    failure_type=failure_type,
+                    severity=severity,
+                    component="workflow-engine",
+                    error_message=str(e),
+                    stack_trace=stack_trace,
+                    context={
+                        "workflow_id": str(execution.workflow_id),
+                        "execution_id": execution.execution_id,
+                    },
+                    affected_operations=[
+                        "workflow.execute",
+                        f"workflow.{execution.workflow_id}",
+                    ],
+                    is_retriable=failure_type != FailureType.VALIDATION,
+                )
+
                 execution.fail(str(e))
-                
+
                 # Remove from active executions
                 self.active_executions.pop(execution.execution_id, None)
     
