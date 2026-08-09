@@ -28,7 +28,7 @@ from baselayer.models import (
     KnowledgeEntry, KnowledgeType, KnowledgeStatus,
     Protocol, ProtocolCategory, ProtocolStatus,
     Agent, AgentType, AgentStatus,
-    GovernanceRule, GovernanceCategory, GovernanceStatus, RuleType,
+    GovernanceRule, GovernanceCategory, RuleStatus, RuleType,
     OutputTemplate, OutputType, OutputFormat,
 )
 
@@ -126,7 +126,7 @@ class DatabaseSeeder:
                 "description": "Enforces minimum security standards for all operations",
                 "category": GovernanceCategory.SECURITY,
                 "priority": "high",
-                "status": GovernanceStatus.ACTIVE,
+                "status": RuleStatus.ACTIVE,
                 "rule_type": RuleType.ENFORCEMENT,
                 "rule_definition": {
                     "requirements": [
@@ -144,7 +144,7 @@ class DatabaseSeeder:
                 "description": "Maintains comprehensive audit logs for compliance",
                 "category": GovernanceCategory.COMPLIANCE,
                 "priority": "high",
-                "status": GovernanceStatus.ACTIVE,
+                "status": RuleStatus.ACTIVE,
                 "rule_type": RuleType.AUDIT,
                 "rule_definition": {
                     "log_all_user_actions": True,
@@ -160,7 +160,7 @@ class DatabaseSeeder:
                 "description": "Monitors system performance against defined thresholds",
                 "category": GovernanceCategory.PERFORMANCE,
                 "priority": "medium",
-                "status": GovernanceStatus.ACTIVE,
+                "status": RuleStatus.ACTIVE,
                 "rule_type": RuleType.MONITORING,
                 "rule_definition": {
                     "response_time_threshold_ms": 5000,

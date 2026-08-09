@@ -36,7 +36,7 @@ class GovernancePriority(str, Enum):
     CRITICAL = "critical"
 
 
-class GovernanceStatus(str, Enum):
+class RuleStatus(str, Enum):
     """Governance rule status."""
     ACTIVE = "active"
     INACTIVE = "inactive"
@@ -109,10 +109,10 @@ class GovernanceRule(BaseModel):
         comment="Rule priority"
     )
     
-    status: Mapped[GovernanceStatus] = mapped_column(
-        ENUM(GovernanceStatus, name="governance_status"),
+    status: Mapped[RuleStatus] = mapped_column(
+        ENUM(RuleStatus, name="rule_status"),
         nullable=False,
-        default=GovernanceStatus.DRAFT,
+        default=RuleStatus.DRAFT,
         index=True,
         comment="Current rule status"
     )
@@ -280,7 +280,7 @@ class GovernanceRule(BaseModel):
     @property
     def is_active(self) -> bool:
         """Check if rule is active."""
-        return self.status == GovernanceStatus.ACTIVE
+        return self.status == RuleStatus.ACTIVE
     
     @property
     def is_critical(self) -> bool:
@@ -294,17 +294,17 @@ class GovernanceRule(BaseModel):
     
     def activate(self) -> None:
         """Activate the governance rule."""
-        self.status = GovernanceStatus.ACTIVE
+        self.status = RuleStatus.ACTIVE
         self.increment_version()
     
     def deactivate(self) -> None:
         """Deactivate the governance rule."""
-        self.status = GovernanceStatus.INACTIVE
+        self.status = RuleStatus.INACTIVE
         self.increment_version()
     
     def deprecate(self) -> None:
         """Deprecate the governance rule."""
-        self.status = GovernanceStatus.DEPRECATED
+        self.status = RuleStatus.DEPRECATED
         self.increment_version()
     
     def schedule_review(self, frequency_days: int) -> None:

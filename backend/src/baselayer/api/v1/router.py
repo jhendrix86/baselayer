@@ -5,10 +5,20 @@ Main router for API v1 endpoints.
 
 Subsystem routers are imported defensively: several subsystems (codex,
 agents, governance, output_engine, as of this writing) have pre-existing
-import errors unrelated to any one subsystem (missing classes in their own
-models files) that would otherwise take down the entire API if imported
+import errors that would otherwise take down the entire API if imported
 unconditionally at module level. A broken subsystem is logged and skipped
 rather than blocking every other subsystem, including the ones that work.
+
+Current known causes (see `OS42_REPAIR_PLAN.md` for status): codex and
+output_engine each reference an enum/column (`EntryType`, `TemplateType`)
+that was never added to their models file - a real rename mismatch between
+the model and the code that consumes it, not a 1-line fix, since the
+model's existing enum values don't cover what the consuming code needs.
+agents references a whole `AgentMessage` model that doesn't exist yet.
+governance's `RuleStatus` mismatch is fixed (was the same shape as
+codex/output_engine's), but governance/api/__init__.py still imports 5
+router modules (compliance, audit, risk, automation, dashboard) of which
+only policies.py exists on disk.
 """
 
 import structlog
