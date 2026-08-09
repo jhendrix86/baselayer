@@ -778,13 +778,13 @@ class GraphFilter(BaseModel):
     min_node_count: Optional[int] = None
     max_node_count: Optional[int] = None
     min_edge_count: Optional[int] = None
-    max_edge_count: Optional[int] None
+    max_edge_count: Optional[int] = None
     min_depth: Optional[int] = None
-    max_depth: Optional[int] None
+    max_depth: Optional[int] = None
     created_after: Optional[datetime] = None
     created_before: Optional[datetime] = None
     updated_after: Optional[datetime] = None
-    updated_before: Optional[datetime] None
+    updated_before: Optional[datetime] = None
 
 
 class EmbeddingFilter(BaseModel):

@@ -320,7 +320,7 @@ class VectorEmbedding(Base):
             "model": self.embedding_model,
             "normalized": self.normalized,
             "length": self.vector_length,
-            "token_utilization": self.token_utilization
+            "token_utilization": self.token_utilization,
             "is_chunked": self.is_chunked,
             "chunk_position": self.chunk_position,
             "similarity_threshold": self.similarity_threshold,

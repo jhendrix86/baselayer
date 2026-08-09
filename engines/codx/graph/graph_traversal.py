@@ -480,7 +480,7 @@ class GraphTraverser:
             
             # Default heuristic (straight-line distance based on level)
             if heuristic_func is None:
-                def heuristic(node_id: str) -> float:
+                async def heuristic(node_id: str) -> float:
                     node = await self._get_node(node_id)
                     if not node:
                         return 0.0
@@ -488,7 +488,7 @@ class GraphTraverser:
             
             # Initialize A* algorithm
             g_scores = {str(start_node.id): 0.0}  # Cost from start
-            f_scores = {str(start_node.id): heuristic(str(start_node.id))}  # Heuristic to target
+            f_scores = {str(start_node.id): await heuristic(str(start_node.id))}  # Heuristic to target
             f_scores_total = {str(start_node.id): f_scores[str(start_node.id)]}  # g + f
             previous_nodes = {str(start_node.id): None}
             open_set = [(f_scores_total[str(start_node.id)], str(start_node.id))]
@@ -522,7 +522,7 @@ class GraphTraverser:
                         continue
                     
                     tentative_g_score = g_scores[current_node_id] + edge.weight
-                    tentative_f_score = heuristic(neighbor_id)
+                    tentative_f_score = await heuristic(neighbor_id)
                     tentative_f_total = tentative_g_score + tentative_f_score
                     
                     if (neighbor_id not in f_scores or 
