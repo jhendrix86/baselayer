@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
 from baselayer.core.logging import get_logger
-from baselayer.core.tenant_context import set_tenant_context
+from baselayer.core.tenant_context import set_tenant_context, clear_tenant_context
 
 logger = get_logger(__name__)
 
@@ -203,13 +203,19 @@ class TenantMiddleware(BaseHTTPMiddleware):
                     content={"error": "Invalid tenant_id format in X-Tenant-ID header"},
                 )
         
-        # Set the tenant context if found
+        # Set (or explicitly clear) the tenant context for this request.
+        # ContextVar state can otherwise leak across requests that share
+        # the same context chain if a request without a tenant header
+        # simply left a prior request's tenant_id in place instead of
+        # clearing it.
         if tenant_id:
             set_tenant_context(tenant_id)
-        
+        else:
+            clear_tenant_context()
+
         # Process the request
         response = await call_next(request)
-        
+
         return response
 
 
