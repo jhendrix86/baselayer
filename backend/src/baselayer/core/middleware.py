@@ -15,8 +15,17 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
 from baselayer.core.logging import get_logger
+from baselayer.core.tenant_context import set_tenant_context
 
 logger = get_logger(__name__)
+
+__all__ = [
+    "RequestIDMiddleware",
+    "LoggingMiddleware",
+    "SecurityHeadersMiddleware",
+    "TenantMiddleware",
+    "RateLimitMiddleware",
+]
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
@@ -153,6 +162,53 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "form-action 'self';"
         )
         response.headers["Content-Security-Policy"] = csp
+        
+        return response
+
+
+class TenantMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware for extracting and setting tenant context from requests.
+    
+    This middleware attempts to extract tenant_id from:
+    1. Authorization header (JWT token claims)
+    2. X-Tenant-ID header (for testing/debugging)
+    
+    The tenant context is then available throughout the request lifecycle
+    for automatic database query filtering.
+    """
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> StarletteResponse:
+        """Extract tenant context and process request."""
+        tenant_id = None
+        
+        # Method 1: From Authorization header (JWT token)
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:]  # Remove "Bearer " prefix
+            # In production, you'd decode the JWT and extract tenant_id from claims
+            # For now, this is a placeholder
+            logger.debug("Authorization header present, JWT extraction not yet implemented")
+        
+        # Method 2: From X-Tenant-ID header (for testing/internal calls)
+        tenant_id_header = request.headers.get("X-Tenant-ID")
+        if tenant_id_header:
+            try:
+                tenant_id = uuid.UUID(tenant_id_header)
+                logger.debug("Extracted tenant_id from X-Tenant-ID header", tenant_id=str(tenant_id))
+            except ValueError:
+                logger.warning("Invalid tenant_id in X-Tenant-ID header", tenant_id_header=tenant_id_header)
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "Invalid tenant_id format in X-Tenant-ID header"},
+                )
+        
+        # Set the tenant context if found
+        if tenant_id:
+            set_tenant_context(tenant_id)
+        
+        # Process the request
+        response = await call_next(request)
         
         return response
 

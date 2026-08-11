@@ -22,6 +22,7 @@ from baselayer.core.middleware import (
     RequestIDMiddleware,
     LoggingMiddleware,
     SecurityHeadersMiddleware,
+    TenantMiddleware,
 )
 from baselayer.api.v1.router import api_v1_router
 from baselayer.api.health import health_router
@@ -94,6 +95,7 @@ app = FastAPI(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(LoggingMiddleware)
+app.add_middleware(TenantMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,

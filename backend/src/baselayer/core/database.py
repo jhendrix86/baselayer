@@ -107,6 +107,19 @@ async def create_tables() -> None:
     
     This should only be called during application startup or migrations.
     """
+    # Import all models to ensure they're registered in metadata
+    from baselayer.models import (
+        tenant,
+        user,
+        core_loop,
+        income_engine,
+        codex,
+        protocols,
+        agents,
+        governance,
+        output_engine,
+    )
+    
     async with get_engine().begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

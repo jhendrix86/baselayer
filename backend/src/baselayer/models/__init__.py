@@ -5,7 +5,8 @@ SQLAlchemy models for all 7 subsystems with proper relationships,
 constraints, and indexes optimized for i5-2400 hardware.
 """
 
-from .base import Base
+from .base import Base, BaseModel
+from .tenant import Tenant
 from .user import User
 from .core_loop import Workflow, WorkflowExecution, WorkflowStep
 from .income_engine import RevenueStream, RevenueTransaction, RevenueMetrics
@@ -18,6 +19,9 @@ from .output_engine import OutputTemplate, GeneratedOutput, DeliveryLog
 __all__ = [
     # Base
     "Base",
+    "BaseModel",
+    # Multi-tenancy
+    "Tenant",
     # User Management
     "User",
     # Core Loop

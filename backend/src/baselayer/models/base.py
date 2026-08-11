@@ -80,6 +80,15 @@ class BaseModel(Base):
         comment="Timestamp when the record was soft deleted"
     )
     
+    # Multi-tenancy support
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUIDType(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="ID of the tenant that owns this record"
+    )
+    
     # Audit fields
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUIDType(as_uuid=True),
