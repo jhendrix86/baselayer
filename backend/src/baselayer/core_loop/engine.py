@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.core_loop import (
     Workflow, WorkflowExecution, WorkflowStep, WorkflowStepExecution,
     WorkflowStatus, WorkflowPriority, StepType
@@ -83,7 +83,7 @@ class WorkflowEngine:
             WorkflowValidationError: If workflow validation fails
             WorkflowGovernanceError: If governance checks fail
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get workflow
             result = await session.execute(
                 select(Workflow).where(
@@ -206,7 +206,7 @@ class WorkflowEngine:
         if not workflow.governance_required:
             return
         
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Check user permissions
             if user_id:
                 result = await session.execute(
@@ -284,7 +284,7 @@ class WorkflowEngine:
         Args:
             execution: Workflow execution record
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get workflow and steps
             result = await session.execute(
                 select(Workflow).where(Workflow.id == execution.workflow_id)
@@ -566,7 +566,7 @@ class WorkflowEngine:
             return self.active_executions[execution_id]
         
         # Check database
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(WorkflowExecution).where(
                     WorkflowExecution.execution_id == execution_id

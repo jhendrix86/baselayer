@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from structlog import get_logger
 
-from ...core.database import get_db_session
+from ...core.database import get_db_session, db_session_context
 from ...models.core_loop import WorkflowExecution, WorkflowStatus
 from ...models.user import User
 from ...core.auth import get_current_user
@@ -386,7 +386,7 @@ async def retry_execution(
         Dict[str, Any]: Retry result
     """
     # Get original execution
-    async with get_db_session() as db:
+    async with db_session_context() as db:
         result = await db.execute(
             select(WorkflowExecution).where(
                 WorkflowExecution.execution_id == execution_id,

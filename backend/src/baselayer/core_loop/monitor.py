@@ -14,7 +14,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.core_loop import (
     Workflow, WorkflowExecution, WorkflowStatus, WorkflowPriority
 )
@@ -123,7 +123,7 @@ class WorkflowMonitor:
     
     async def _collect_database_metrics(self) -> Dict[str, Any]:
         """Collect metrics from the database."""
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Total executions
             total_result = await session.execute(
                 select(func.count(WorkflowExecution.id)).where(
@@ -248,7 +248,7 @@ class WorkflowMonitor:
         Returns:
             Dict[str, Any]: Workflow metrics
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             since = datetime.utcnow() - timedelta(hours=hours)
             
             # Build query
@@ -299,7 +299,7 @@ class WorkflowMonitor:
         Returns:
             Dict[str, Any]: Execution timeline
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get execution
             result = await session.execute(
                 select(WorkflowExecution).where(

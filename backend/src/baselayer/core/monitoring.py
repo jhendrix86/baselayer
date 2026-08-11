@@ -17,7 +17,7 @@ from sqlalchemy import func
 from structlog import get_logger
 
 from .config import get_settings
-from .database import get_db_session
+from .database import db_session_context
 from ..models.user import User
 from ..models.core_loop import Workflow, WorkflowExecution
 from ..models.governance import AuditLog
@@ -423,7 +423,7 @@ class MonitoringSystem:
     async def _get_database_metrics(self) -> Dict[str, Any]:
         """Get database metrics."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Connection pool metrics
                 pool = session.bind.pool
                 connections = {
@@ -469,7 +469,7 @@ class MonitoringSystem:
     async def _get_application_metrics(self) -> Dict[str, Any]:
         """Get application-level metrics."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # User metrics
                 result = await session.execute(
                     select(func.count(User.id)).where(User.is_active == True)
@@ -540,7 +540,7 @@ class MonitoringSystem:
         try:
             start_time = time.time()
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Simple connectivity test
                 await session.execute("SELECT 1")
                 

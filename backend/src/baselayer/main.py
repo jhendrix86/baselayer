@@ -35,6 +35,12 @@ from baselayer.income_engine.api import revenue as income_engine_revenue
 from baselayer.income_engine.api import billing as income_engine_billing
 from baselayer.income_engine.api import subscriptions as income_engine_subscriptions
 from baselayer.income_engine.api import providers as income_engine_providers
+from baselayer.core_loop.engine import WorkflowEngine
+from baselayer.core_loop.scheduler import WorkflowScheduler
+from baselayer.core_loop.monitor import WorkflowMonitor
+from baselayer.core_loop.api import workflows as core_loop_workflows
+from baselayer.core_loop.api import executions as core_loop_executions
+from baselayer.core_loop.api import monitoring as core_loop_monitoring
 
 # Setup structured logging
 setup_logging()
@@ -69,13 +75,53 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     income_engine_providers.provider_manager = PaymentProviderManager()
     logger.info("Income engine initialized")
 
+    # Initialize the core_loop subsystem. Same bug shape as income_engine
+    # above, just never fixed for this subsystem: workflows.py/executions.py/
+    # monitoring.py each declare their own module-level workflow_engine/
+    # workflow_scheduler/workflow_monitor globals (three independent globals,
+    # not shared state) and get_workflow_engine()/get_workflow_scheduler()/
+    # get_workflow_monitor() unconditionally raise 500 "not initialized" if
+    # nothing ever sets them - nothing did, anywhere, so every core-loop
+    # endpoint that needs the engine/scheduler/monitor was unreachable.
+    # core_loop/tasks.py's initialize_core_loop() looks like it was meant to
+    # do this, but it's never imported/called from anywhere (dead code) and
+    # it also `await`s start_execution_worker() directly, which would hang
+    # startup forever since that method is an infinite `while True` loop -
+    # not used here for that reason. WorkflowScheduler.start() and
+    # WorkflowMonitor.start() already background their own loops via
+    # asyncio.create_task(); the execution worker is backgrounded the same
+    # way for consistency.
+    workflow_engine = WorkflowEngine()
+    await workflow_engine.connect()
+    workflow_scheduler = WorkflowScheduler(workflow_engine)
+    await workflow_scheduler.start()
+    workflow_monitor = WorkflowMonitor(workflow_engine)
+    await workflow_monitor.start()
+    execution_worker_task = asyncio.create_task(workflow_engine.start_execution_worker())
+
+    core_loop_workflows.workflow_engine = workflow_engine
+    core_loop_workflows.workflow_scheduler = workflow_scheduler
+    core_loop_executions.workflow_engine = workflow_engine
+    core_loop_executions.workflow_monitor = workflow_monitor
+    core_loop_monitoring.workflow_monitor = workflow_monitor
+    core_loop_monitoring.workflow_scheduler = workflow_scheduler
+    logger.info("Core loop initialized")
+
     # Initialize Redis connection
     # This will be implemented in Phase 4
 
     yield
-    
+
     # Shutdown
     logger.info("Shutting down BaseLayer API server")
+    execution_worker_task.cancel()
+    try:
+        await execution_worker_task
+    except asyncio.CancelledError:
+        pass
+    await workflow_monitor.stop()
+    await workflow_scheduler.stop()
+    await workflow_engine.disconnect()
     await close_database()
     logger.info("Database connections closed")
 

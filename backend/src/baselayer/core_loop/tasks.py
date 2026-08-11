@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.core_loop import Workflow, WorkflowExecution, WorkflowStatus
 from .engine import WorkflowEngine
 from .scheduler import WorkflowScheduler
@@ -32,8 +32,13 @@ async def initialize_core_loop():
     
     workflow_engine = WorkflowEngine()
     workflow_scheduler = WorkflowScheduler(workflow_engine)
-    
-    await workflow_engine.start_execution_worker()
+
+    # start_execution_worker() is an infinite `while True` loop - awaiting
+    # it directly (as this used to) would block this function, and thus
+    # this whole coroutine, forever, so workflow_scheduler.start() below
+    # would never run. Backgrounded the same way WorkflowScheduler.start()/
+    # WorkflowMonitor.start() already background their own loops.
+    asyncio.create_task(workflow_engine.start_execution_worker())
     await workflow_scheduler.start()
     
     logger.info("Core Loop components initialized")
@@ -71,7 +76,7 @@ async def execute_workflow_task(ctx: Dict[str, Any], execution_id: str) -> Dict[
     
     try:
         # Get execution from database
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(WorkflowExecution).where(
                     WorkflowExecution.execution_id == execution_id
@@ -100,7 +105,7 @@ async def execute_workflow_task(ctx: Dict[str, Any], execution_id: str) -> Dict[
         
         # Update execution status to failed
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(WorkflowExecution).where(
                         WorkflowExecution.execution_id == execution_id
@@ -136,7 +141,7 @@ async def cleanup_old_executions(ctx: Dict[str, Any]) -> Dict[str, Any]:
     cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
     
     try:
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Soft delete old executions
             result = await session.execute(
                 select(WorkflowExecution).where(
@@ -316,7 +321,7 @@ async def check_workflow_health(ctx: Dict[str, Any]) -> Dict[str, Any]:
         
         # Check database connectivity
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 await session.execute("SELECT 1")
                 health_status["checks"]["database"] = {
                     "status": "healthy"

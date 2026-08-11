@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.core_loop import Workflow, WorkflowExecution, WorkflowStatus, ScheduleType
 from .engine import WorkflowEngine
 
@@ -76,7 +76,7 @@ class WorkflowScheduler:
     
     async def _check_and_execute_scheduled_workflows(self) -> None:
         """Check for and execute scheduled workflows."""
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get all active scheduled workflows
             result = await session.execute(
                 select(Workflow).where(
@@ -209,7 +209,7 @@ class WorkflowScheduler:
         
         try:
             # Check for existing recent executions to avoid duplicates
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(WorkflowExecution).where(
                         WorkflowExecution.workflow_id == workflow.id,
@@ -292,7 +292,7 @@ class WorkflowScheduler:
         Returns:
             bool: True if scheduled successfully
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get workflow
             result = await session.execute(
                 select(Workflow).where(
@@ -341,7 +341,7 @@ class WorkflowScheduler:
         Returns:
             bool: True if unscheduled successfully
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get workflow
             result = await session.execute(
                 select(Workflow).where(

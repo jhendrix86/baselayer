@@ -19,7 +19,7 @@ from sqlalchemy.future import select
 from structlog import get_logger
 
 from .config import get_settings
-from .database import get_db_session
+from .database import get_db_session, db_session_context
 from ..models.user import User, UserRole
 
 logger = get_logger(__name__)
@@ -444,7 +444,7 @@ class AuthenticationService:
                 raise AuthenticationError("Invalid refresh token")
             
             # Get user from database
-            async with get_db_session() as db:
+            async with db_session_context() as db:
                 result = await db.execute(
                     select(User).where(User.id == uuid.UUID(user_id), User.is_active == True)
                 )

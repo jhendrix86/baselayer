@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from structlog import get_logger
 
-from ...core.database import get_db_session
+from ...core.database import db_session_context
 from ...models.core_loop import Workflow, WorkflowExecution, WorkflowStatus
 from ...models.user import User
 from ...core.auth import get_current_user
@@ -182,7 +182,7 @@ async def get_system_health(
     
     # Check database connectivity
     try:
-        async with get_db_session() as db:
+        async with db_session_context() as db:
             await db.execute("SELECT 1")
             health_status["components"]["database"] = {
                 "status": "healthy"
@@ -219,7 +219,7 @@ async def get_workflows_overview(
     Returns:
         Dict[str, Any]: Workflows overview
     """
-    async with get_db_session() as db:
+    async with db_session_context() as db:
         # Get workflow counts by status
         result = await db.execute(
             select(
@@ -280,7 +280,7 @@ async def get_workflows_performance(
     Returns:
         List[Dict[str, Any]]: Workflow performance metrics
     """
-    async with get_db_session() as db:
+    async with db_session_context() as db:
         # Get workflows with execution counts and average duration
         result = await db.execute(
             select(
