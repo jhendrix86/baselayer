@@ -42,3 +42,22 @@ def clear_tenant_context() -> None:
     """Clear the tenant context."""
     tenant_context.set(None)
     logger.debug("Cleared tenant context")
+
+
+def apply_tenant_context(model_instance) -> None:
+    """
+    Apply the current tenant context to a model instance if not already set.
+
+    Args:
+        model_instance: Model instance (any BaseModel subclass with a tenant_id
+            column) to apply tenant context to
+    """
+    tenant_id = get_tenant_context()
+
+    if tenant_id is None:
+        logger.debug("No tenant context available, skipping tenant assignment")
+        return
+
+    if hasattr(model_instance, "tenant_id") and model_instance.tenant_id is None:
+        model_instance.tenant_id = tenant_id
+        logger.debug("Applied tenant context to model", tenant_id=str(tenant_id))

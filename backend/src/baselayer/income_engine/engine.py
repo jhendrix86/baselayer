@@ -17,6 +17,7 @@ from sqlalchemy import func
 from structlog import get_logger
 
 from ..core.database import db_session_context
+from ..core.tenant_context import apply_tenant_context
 from ..models.income_engine import (
     RevenueStream, RevenueTransaction, RevenueMetrics,
     RevenueType, RevenueStatus, PricingModel, TransactionStatus
@@ -111,7 +112,8 @@ class RevenueEngine:
                 usage_limits=usage_limits or {},
                 created_by=created_by
             )
-            
+
+            apply_tenant_context(revenue_stream)
             session.add(revenue_stream)
             await session.commit()
             await session.refresh(revenue_stream)
@@ -198,7 +200,8 @@ class RevenueEngine:
                 metadata_=metadata or {},
                 created_by=created_by
             )
-            
+
+            apply_tenant_context(transaction)
             session.add(transaction)
             await session.commit()
             await session.refresh(transaction)
