@@ -415,7 +415,8 @@ class AuthenticationService:
             "sub": str(user.id),
             "email": user.email,
             "role": user.role.value,
-            "name": user.full_name
+            "name": user.full_name,
+            "tenant_id": str(user.tenant_id) if user.tenant_id else None
         }
         access_token = self.token_manager.create_access_token(access_token_data)
         
@@ -457,7 +458,8 @@ class AuthenticationService:
                     "sub": str(user.id),
                     "email": user.email,
                     "role": user.role.value,
-                    "name": user.name
+                    "name": user.full_name,
+                    "tenant_id": str(user.tenant_id) if user.tenant_id else None
                 }
                 access_token = self.token_manager.create_access_token(access_token_data)
                 

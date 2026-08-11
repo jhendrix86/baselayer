@@ -169,30 +169,48 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 class TenantMiddleware(BaseHTTPMiddleware):
     """
     Middleware for extracting and setting tenant context from requests.
-    
+
     This middleware attempts to extract tenant_id from:
-    1. Authorization header (JWT token claims)
-    2. X-Tenant-ID header (for testing/debugging)
-    
+    1. Authorization header (JWT token claims) - authoritative when present
+    2. X-Tenant-ID header (for testing/internal calls, or when there's no
+       JWT to decode) - only used as a fallback
+
     The tenant context is then available throughout the request lifecycle
     for automatic database query filtering.
     """
-    
+
     async def dispatch(self, request: Request, call_next: Callable) -> StarletteResponse:
         """Extract tenant context and process request."""
         tenant_id = None
-        
-        # Method 1: From Authorization header (JWT token)
+
+        # Method 1: From Authorization header (JWT token). Unlike the
+        # standalone engines in this fleet (which have no real user auth
+        # and so have no JWT to decode), baselayer's login flow already
+        # issues real JWTs (TokenManager.create_access_token) carrying a
+        # "tenant_id" claim as of this change - decode it here rather than
+        # duplicating the token-parsing logic. A decode failure (missing/
+        # expired/malformed token) is deliberately swallowed rather than
+        # rejecting the request: this middleware only extracts tenant
+        # context, it isn't the auth gate - a route's own
+        # get_current_user dependency is what actually rejects bad tokens.
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header[7:]  # Remove "Bearer " prefix
-            # In production, you'd decode the JWT and extract tenant_id from claims
-            # For now, this is a placeholder
-            logger.debug("Authorization header present, JWT extraction not yet implemented")
-        
-        # Method 2: From X-Tenant-ID header (for testing/internal calls)
+            try:
+                from baselayer.core.auth import TokenManager
+
+                payload = TokenManager().verify_token(token, token_type="access")
+                claim = payload.get("tenant_id")
+                if claim:
+                    tenant_id = uuid.UUID(claim)
+                    logger.debug("Extracted tenant_id from JWT claim", tenant_id=str(tenant_id))
+            except Exception as e:
+                logger.debug("Could not extract tenant_id from Authorization header", error=str(e))
+
+        # Method 2: From X-Tenant-ID header (for testing/internal calls,
+        # or as a fallback when Method 1 found nothing)
         tenant_id_header = request.headers.get("X-Tenant-ID")
-        if tenant_id_header:
+        if tenant_id is None and tenant_id_header:
             try:
                 tenant_id = uuid.UUID(tenant_id_header)
                 logger.debug("Extracted tenant_id from X-Tenant-ID header", tenant_id=str(tenant_id))
