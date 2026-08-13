@@ -133,12 +133,18 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
       - CORS_ORIGINS=https://baselayer.local,http://192.168.1.50:3000
+      # See the `agent` service below for why this is host.docker.internal,
+      # not localhost - same reasoning applies here since health.py/
+      # metrics.py both read OLLAMA_URL too.
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
     volumes:
       - ./uploads:/var/lib/baselayer/uploads
       - ./logs:/var/log/baselayer
       - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
       - "127.0.0.1:8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - baselayer
     depends_on:
@@ -180,10 +186,13 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
       - WORKER_MODE=true
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
     volumes:
       - ./uploads:/var/lib/baselayer/uploads
       - ./logs:/var/log/baselayer
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - baselayer
     depends_on:
@@ -225,12 +234,21 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
       - AGENT_MODE=true
-      - OLLAMA_URL=http://localhost:11434
+      # Was http://localhost:11434 - inside this container "localhost" is
+      # the container itself, not the host machine Ollama actually runs
+      # on. host.docker.internal + the extra_hosts entry below is the
+      # correct way to reach a host-installed service from a container on
+      # native Linux Docker (Docker Desktop on Mac/Windows resolves this
+      # hostname automatically; plain Linux Docker Engine needs the
+      # explicit host-gateway mapping, available since Docker 20.10+).
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
     volumes:
       - ./uploads:/var/lib/baselayer/uploads
       - ./logs:/var/log/baselayer
       - /home/baselayer/ai/models:/models
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - baselayer
     depends_on:
