@@ -42,10 +42,6 @@ WORKDIR /app
 # Copy dependency files
 COPY backend/pyproject.toml backend/uv.lock* ./
 
-# Install dependencies with uv
-RUN uv pip install --system --no-cache-dir -e .[dev] \
-    && uv cache clean
-
 # =============================================================================
 # Development Stage
 # =============================================================================
@@ -54,6 +50,18 @@ FROM dependencies as development
 # Copy source code
 COPY backend/src ./src
 COPY shared ./shared
+
+# Install dependencies with uv - must run after the source COPY above, not
+# in the shared "dependencies" stage: "-e ." is an editable install of the
+# local "baselayer" package itself (packages = ["src/baselayer"] in
+# pyproject.toml), which needs src/baselayer to actually exist on disk to
+# register a working import link. Installing it before src/ was copied
+# silently produced a metadata-only package with no real link (confirmed
+# empirically: no .pth file, "import baselayer" failed even with no volume
+# mount involved) - this was never caught because this Dockerfile had never
+# actually been built and run before (2026-08-14, real Docker host).
+RUN uv pip install --system --no-cache-dir -e .[dev] \
+    && uv cache clean
 
 # Create necessary directories
 RUN mkdir -p /app/uploads /app/logs /tmp/uploads \
@@ -80,6 +88,13 @@ FROM dependencies as production
 # Copy source code
 COPY backend/src ./src
 COPY shared ./shared
+
+# Install dependencies with uv - see the identical comment in the
+# development stage above for why this must run after the source COPY,
+# not in the shared "dependencies" stage. No [dev] extras here (pytest/
+# black/ruff/mypy aren't needed at runtime).
+RUN uv pip install --system --no-cache-dir -e . \
+    && uv cache clean
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /var/lib/baselayer/uploads /var/log/baselayer /tmp/uploads \
