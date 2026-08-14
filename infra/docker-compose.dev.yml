@@ -95,6 +95,8 @@ services:
       target: development
     container_name: baselayer-backend-dev
     restart: unless-stopped
+    env_file:
+      - ../.env
     environment:
       - ENVIRONMENT=development
       - DATABASE_URL=postgresql+asyncpg://baselayer:dev_password@postgres:5432/baselayer_dev
