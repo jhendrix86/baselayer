@@ -732,7 +732,7 @@ class RevenueMetrics(BaseModel):
     # Constraints and indexes
     __table_args__ = (
         UniqueConstraint("revenue_stream_id", "period_start", "period_end", "period_type", name="uq_revenue_metrics_period"),
-        Index("idx_metrics_period", "period_start", "period_end"),
+        Index("idx_revenue_metrics_period", "period_start", "period_end"),
         Index("idx_metrics_revenue", "total_revenue"),
         {"comment": "Revenue performance metrics and analytics"}
     )

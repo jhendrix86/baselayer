@@ -243,7 +243,7 @@ class OutputTemplate(BaseModel):
     __table_args__ = (
         UniqueConstraint("name", "deleted_at", name="uq_output_template_name_deleted"),
         Index("idx_template_type_format", "output_type", "output_format"),
-        Index("idx_template_usage", "usage_count"),
+        Index("idx_output_template_usage", "usage_count"),
         Index("idx_template_tags", "tags", postgresql_using="gin"),
         {"comment": "Output templates for generating various types of content"}
     )

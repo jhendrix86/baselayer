@@ -585,7 +585,7 @@ class ProtocolTemplate(BaseModel):
     # Constraints and indexes
     __table_args__ = (
         Index("idx_template_type", "template_type"),
-        Index("idx_template_usage", "usage_count"),
+        Index("idx_protocol_template_usage", "usage_count"),
         {"comment": "Reusable protocol templates"}
     )
     

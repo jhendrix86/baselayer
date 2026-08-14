@@ -750,7 +750,7 @@ class AgentMetrics(BaseModel):
     # Constraints and indexes
     __table_args__ = (
         UniqueConstraint("agent_id", "period_start", "period_end", "period_type", name="uq_agent_metrics_period"),
-        Index("idx_metrics_period", "period_start", "period_end"),
+        Index("idx_agent_metrics_period", "period_start", "period_end"),
         Index("idx_metrics_performance", "success_rate", "throughput"),
         {"comment": "Agent performance metrics and statistics"}
     )
