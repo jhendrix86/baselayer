@@ -91,7 +91,7 @@ services:
   backend:
     build:
       context: ..
-      dockerfile: infra/Dockerfile.dev
+      dockerfile: infra/Dockerfile
       target: development
     container_name: baselayer-backend-dev
     restart: unless-stopped
