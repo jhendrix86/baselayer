@@ -6,10 +6,10 @@ Environment variables are loaded and validated at startup.
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 from pydantic import Field, validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, NoDecode
 
 
 class Settings(BaseSettings):
@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     redis_max_connections: int = Field(default=10, env="REDIS_MAX_CONNECTIONS")
     
     # CORS
-    cors_origins: List[str] = Field(
+    cors_origins: Annotated[List[str], NoDecode] = Field(
         default=["http://localhost:3000", "http://localhost:5173"],
         env="CORS_ORIGINS"
     )
