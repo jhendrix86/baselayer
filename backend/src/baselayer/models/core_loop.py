@@ -11,7 +11,7 @@ import uuid
 from enum import Enum
 from typing import Any, Dict
 
-from sqlalchemy import Boolean, String, Text, JSON, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import Boolean, Integer, String, Text, JSON, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 
@@ -375,7 +375,7 @@ class WorkflowExecution(BaseModel):
     )
     
     duration_seconds: Mapped[int] = mapped_column(
-        String(20),
+        Integer,
         nullable=True,
         comment="Total execution duration in seconds"
     )
@@ -517,7 +517,7 @@ class WorkflowExecution(BaseModel):
             self.output_data = output_data
         
         if self.started_at:
-            self.duration_seconds = str(int((self.completed_at - self.started_at).total_seconds()))
+            self.duration_seconds = int((self.completed_at - self.started_at).total_seconds())
     
     def fail(self, error_message: str, error_details: Dict[str, Any] | None = None) -> None:
         """
@@ -535,7 +535,7 @@ class WorkflowExecution(BaseModel):
             self.error_details = error_details
         
         if self.started_at:
-            self.duration_seconds = str(int((self.completed_at - self.started_at).total_seconds()))
+            self.duration_seconds = int((self.completed_at - self.started_at).total_seconds())
     
     def update_progress(self, step_id: str, progress: int) -> None:
         """
@@ -727,7 +727,7 @@ class WorkflowStepExecution(BaseModel):
     )
     
     duration_seconds: Mapped[int] = mapped_column(
-        String(20),
+        Integer,
         nullable=True,
         comment="Step execution duration in seconds"
     )

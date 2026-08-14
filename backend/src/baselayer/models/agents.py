@@ -11,7 +11,7 @@ import uuid
 from enum import Enum
 from typing import Any, Dict
 
-from sqlalchemy import Boolean, String, Text, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import Boolean, Integer, String, Text, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 
@@ -432,7 +432,7 @@ class AgentTask(BaseModel):
     )
     
     duration_seconds: Mapped[int] = mapped_column(
-        String(10),
+        Integer,
         nullable=True,
         comment="Task execution duration in seconds"
     )
@@ -557,7 +557,7 @@ class AgentTask(BaseModel):
         self.progress_percent = "100"
         
         if self.started_at:
-            self.duration_seconds = str(int((self.completed_at - self.started_at).total_seconds()))
+            self.duration_seconds = int((self.completed_at - self.started_at).total_seconds())
     
     def fail(self, error_message: str, error_details: Dict[str, Any] | None = None) -> None:
         """
@@ -575,7 +575,7 @@ class AgentTask(BaseModel):
             self.error_details = error_details
         
         if self.started_at:
-            self.duration_seconds = str(int((self.completed_at - self.started_at).total_seconds()))
+            self.duration_seconds = int((self.completed_at - self.started_at).total_seconds())
     
     def cancel(self) -> None:
         """Cancel the task."""
