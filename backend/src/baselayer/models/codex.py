@@ -13,7 +13,7 @@ from typing import Any, Dict
 
 from sqlalchemy import Boolean, String, Text, Numeric, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID, ARRAY
+from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID, ARRAY, TSVECTOR
 
 from .base import BaseModel, UUIDType
 
@@ -143,7 +143,7 @@ class KnowledgeEntry(BaseModel):
     
     # Search and indexing
     search_vector: Mapped[str | None] = mapped_column(
-        Text,
+        TSVECTOR,
         nullable=True,
         comment="Full-text search vector"
     )
