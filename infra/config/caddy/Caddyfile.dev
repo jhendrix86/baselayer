@@ -44,53 +44,55 @@
 	@options method OPTIONS
 	respond @options 200
 
-	# API routes - must come before the frontend catch-all below: Caddy
-	# preserves source order for repeated reverse_proxy directives in a
-	# Caddyfile, and an unmatched reverse_proxy is unconditional, so if the
-	# frontend proxy were listed first it would swallow every request
-	# (including these) before any of these matchers got a chance to run.
-	# Confirmed empirically (2026-08-14, real Docker host): with frontend
-	# listed first, /health/health 500'd even though backend:8000 was
-	# directly reachable and healthy from inside this very container.
-	@api_path {
-		path /api/* /health/* /metrics/*
+	# Routed with explicit "handle" blocks, not bare matched directives:
+	# handle blocks are documented to be mutually exclusive and evaluated
+	# strictly in the order written (first match wins, no fallthrough) -
+	# unambiguous, unlike relying on Caddy's directive-sorting for repeated
+	# bare "reverse_proxy" blocks. Tried the bare-directive + reordering
+	# approach first (2026-08-14, real Docker host) and it did NOT fix the
+	# actual bug (confirmed empirically: /health/health still 500'd even
+	# with the specific matcher listed before the frontend catch-all in
+	# the file), so switched to this more explicit, Caddy-recommended
+	# pattern instead of continuing to guess at ordering semantics.
+	handle /api/* {
+		reverse_proxy backend:8000 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto http
+		}
 	}
-	reverse_proxy @api_path backend:8000 {
-		# WebSocket support
-		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto http
+	handle /health/* {
+		reverse_proxy backend:8000 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto http
+		}
 	}
-
-	# Development tools
-	@adminer_path {
-		path /adminer*
+	handle /metrics/* {
+		reverse_proxy backend:8000 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto http
+		}
 	}
-	reverse_proxy @adminer_path adminer:8080
-
-	@redis_commander_path {
-		path /redis*
+	handle /adminer* {
+		reverse_proxy adminer:8080
 	}
-	reverse_proxy @redis_commander_path redis-commander:8081
-
-	# Static file serving
+	handle /redis* {
+		reverse_proxy redis-commander:8081
+	}
 	handle /static/* {
 		root * /var/www/static
 		file_server
 	}
-
-	# Frontend development server - catch-all fallback, must stay last (see
-	# comment above); makes the "Default response" below unreachable by
-	# design, same as before this reordering.
-	reverse_proxy frontend:3000 {
-		# WebSocket support
-		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto http
+	# Frontend development server - catch-all fallback, must stay last.
+	handle {
+		reverse_proxy frontend:3000 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto http
+		}
 	}
-
-	# Default response
-	respond 404 "Not Found"
 }
 
 # =============================================================================
@@ -126,45 +128,48 @@
 	@options method OPTIONS
 	respond @options 200
 
-	# API routes - must come before the frontend catch-all below (see the
-	# identical comment in the :80 block above for why).
-	@api_path {
-		path /api/* /health/* /metrics/*
+	# Routed with explicit "handle" blocks - see the identical comment in
+	# the :80 block above for why (mutually exclusive, strict written
+	# order, unlike bare repeated reverse_proxy directives).
+	handle /api/* {
+		reverse_proxy backend:8000 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto https
+		}
 	}
-	reverse_proxy @api_path backend:8000 {
-		# WebSocket support
-		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto https
+	handle /health/* {
+		reverse_proxy backend:8000 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto https
+		}
 	}
-
-	# Development tools
-	@adminer_path {
-		path /adminer*
+	handle /metrics/* {
+		reverse_proxy backend:8000 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto https
+		}
 	}
-	reverse_proxy @adminer_path adminer:8080
-
-	@redis_commander_path {
-		path /redis*
+	handle /adminer* {
+		reverse_proxy adminer:8080
 	}
-	reverse_proxy @redis_commander_path redis-commander:8081
-
-	# Static file serving
+	handle /redis* {
+		reverse_proxy redis-commander:8081
+	}
 	handle /static/* {
 		root * /var/www/static
 		file_server
 	}
-
 	# Frontend development server - catch-all fallback, must stay last.
-	reverse_proxy frontend:3000 {
-		# WebSocket support
-		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto https
+	handle {
+		reverse_proxy frontend:3000 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto https
+		}
 	}
-
-	# Default response
-	respond 404 "Not Found"
 }
 
 # =============================================================================
