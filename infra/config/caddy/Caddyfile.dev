@@ -44,15 +44,14 @@
 	@options method OPTIONS
 	respond @options 200
 
-	# Frontend development server
-	reverse_proxy frontend:3000 {
-		# WebSocket support
-		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto http
-	}
-
-	# API routes
+	# API routes - must come before the frontend catch-all below: Caddy
+	# preserves source order for repeated reverse_proxy directives in a
+	# Caddyfile, and an unmatched reverse_proxy is unconditional, so if the
+	# frontend proxy were listed first it would swallow every request
+	# (including these) before any of these matchers got a chance to run.
+	# Confirmed empirically (2026-08-14, real Docker host): with frontend
+	# listed first, /health/health 500'd even though backend:8000 was
+	# directly reachable and healthy from inside this very container.
 	@api_path {
 		path /api/* /health/* /metrics/*
 	}
@@ -78,6 +77,16 @@
 	handle /static/* {
 		root * /var/www/static
 		file_server
+	}
+
+	# Frontend development server - catch-all fallback, must stay last (see
+	# comment above); makes the "Default response" below unreachable by
+	# design, same as before this reordering.
+	reverse_proxy frontend:3000 {
+		# WebSocket support
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto http
 	}
 
 	# Default response
@@ -117,15 +126,8 @@
 	@options method OPTIONS
 	respond @options 200
 
-	# Frontend development server
-	reverse_proxy frontend:3000 {
-		# WebSocket support
-		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto https
-	}
-
-	# API routes
+	# API routes - must come before the frontend catch-all below (see the
+	# identical comment in the :80 block above for why).
 	@api_path {
 		path /api/* /health/* /metrics/*
 	}
@@ -151,6 +153,14 @@
 	handle /static/* {
 		root * /var/www/static
 		file_server
+	}
+
+	# Frontend development server - catch-all fallback, must stay last.
+	reverse_proxy frontend:3000 {
+		# WebSocket support
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto https
 	}
 
 	# Default response
