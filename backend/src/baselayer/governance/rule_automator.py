@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.governance import (
     GovernanceRule, AuditLog,
     RuleType, RuleStatus
@@ -760,7 +760,7 @@ class RuleAutomator:
     ) -> None:
         """Log automation execution."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 audit_log = AuditLog(
                     event_type="automation_executed",
                     resource_id=automation_rule["rule_id"],

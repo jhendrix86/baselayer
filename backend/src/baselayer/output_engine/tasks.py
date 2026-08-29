@@ -14,7 +14,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.output_engine import (
     OutputTemplate, GeneratedOutput, DeliveryLog,
     OutputStatus, DeliveryStatus
@@ -82,7 +82,7 @@ async def process_scheduled_generations(ctx: Dict[str, Any]) -> Dict[str, Any]:
     
     try:
         # Get pending generations
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(GeneratedOutput).where(
                     GeneratedOutput.status == OutputStatus.PENDING,
@@ -149,7 +149,7 @@ async def process_scheduled_deliveries(ctx: Dict[str, Any]) -> Dict[str, Any]:
     
     try:
         # Get pending deliveries
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(DeliveryLog).where(
                     DeliveryLog.status == DeliveryStatus.PENDING,
@@ -306,7 +306,7 @@ async def optimize_template_cache(ctx: Dict[str, Any]) -> Dict[str, Any]:
         output_engine.clear_cache()
         
         # Pre-cache frequently used templates
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(OutputTemplate).where(
                     OutputTemplate.status == "active",
@@ -439,7 +439,7 @@ async def check_output_system_health(ctx: Dict[str, Any]) -> Dict[str, Any]:
         
         # Check database connectivity
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 await session.execute("SELECT 1")
                 health_status["checks"]["database"] = {
                     "status": "healthy"
@@ -494,7 +494,7 @@ async def process_template_maintenance(ctx: Dict[str, Any]) -> Dict[str, Any]:
             "archived_templates": 0
         }
         
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(OutputTemplate).where(
                     OutputTemplate.deleted_at.is_(None)

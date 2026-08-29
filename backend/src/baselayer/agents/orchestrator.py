@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.agents import (
     Agent, AgentTask, AgentMetrics,
     AgentType, AgentStatus, TaskStatus
@@ -441,7 +441,7 @@ class AgentOrchestrator:
             task.error_message = str(e)
             task.completed_at = datetime.utcnow()
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 session.add(task)
                 await session.commit()
     
@@ -497,7 +497,7 @@ class AgentOrchestrator:
         agent.current_tasks += 1
         
         # Save to database
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             session.add(task)
             session.add(agent)
             await session.commit()
@@ -571,7 +571,7 @@ class AgentOrchestrator:
                 ]
             
             # Save to database
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 session.add(task)
                 session.add(agent)
                 await session.commit()
@@ -591,7 +591,7 @@ class AgentOrchestrator:
             )
             
             # Save to database
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 session.add(task)
                 session.add(agent)
                 await session.commit()
@@ -611,7 +611,7 @@ class AgentOrchestrator:
     
     async def _load_active_agents(self) -> None:
         """Load active agents from database."""
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(Agent).where(
                     Agent.status == AgentStatus.ACTIVE,
@@ -739,7 +739,7 @@ class AgentOrchestrator:
     
     async def _get_completed_tasks_today(self) -> int:
         """Get number of tasks completed today."""
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
             
             result = await session.execute(

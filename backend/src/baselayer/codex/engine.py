@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.codex import (
     KnowledgeEntry, KnowledgeCategory, KnowledgeTag, SearchIndex,
     KnowledgeType, KnowledgeStatus, EntryType
@@ -97,7 +97,7 @@ class KnowledgeEngine:
         if duplicate:
             raise ValidationError(f"Duplicate entry detected: {duplicate.title}")
         
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             try:
                 # Create knowledge entry
                 entry = KnowledgeEntry(
@@ -173,7 +173,7 @@ class KnowledgeEngine:
                 return cached_entry["entry"]
         
         # Load from database
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(KnowledgeEntry).where(
                     KnowledgeEntry.id == uuid.UUID(entry_id),
@@ -216,7 +216,7 @@ class KnowledgeEngine:
             KnowledgeNotFoundError: If entry not found
             ValidationError: If validation fails
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(KnowledgeEntry).where(
                     KnowledgeEntry.id == uuid.UUID(entry_id),
@@ -306,7 +306,7 @@ class KnowledgeEngine:
         Returns:
             bool: True if deleted successfully
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(KnowledgeEntry).where(
                     KnowledgeEntry.id == uuid.UUID(entry_id),
@@ -377,7 +377,7 @@ class KnowledgeEngine:
         Returns:
             List[KnowledgeEntry]: List of knowledge entries
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(KnowledgeEntry).where(KnowledgeEntry.deleted_at.is_(None))
             
             # Apply filters
@@ -513,7 +513,7 @@ class KnowledgeEngine:
         Returns:
             Dict[str, Any]: Statistics
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Base query
             query = select(KnowledgeEntry).where(KnowledgeEntry.deleted_at.is_(None))
             
@@ -634,7 +634,7 @@ class KnowledgeEngine:
         Returns:
             KnowledgeEntry: Duplicate entry or None
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Check for exact title match
             result = await session.execute(
                 select(KnowledgeEntry).where(

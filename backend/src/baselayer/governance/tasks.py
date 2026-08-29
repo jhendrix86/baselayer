@@ -14,7 +14,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.governance import (
     GovernanceRule, AuditLog, ComplianceReport,
     RuleType, RuleStatus, ComplianceStatus
@@ -109,7 +109,7 @@ async def process_policy_enforcement(ctx: Dict[str, Any]) -> Dict[str, Any]:
     
     try:
         # Get policies to enforce
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(GovernanceRule).where(
                     GovernanceRule.enabled == True,
@@ -447,7 +447,7 @@ async def cleanup_old_governance_data(ctx: Dict[str, Any]) -> Dict[str, Any]:
             cleanup_results["audit_logs"] = audit_cleanup
         
         # Clean up old compliance reports
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Delete compliance reports older than 1 year
             cutoff_date = datetime.utcnow() - timedelta(days=365)
             
@@ -615,7 +615,7 @@ async def check_governance_system_health(ctx: Dict[str, Any]) -> Dict[str, Any]:
         
         # Check database connectivity
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 await session.execute("SELECT 1")
                 health_status["checks"]["database"] = {
                     "status": "healthy"

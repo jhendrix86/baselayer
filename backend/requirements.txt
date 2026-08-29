@@ -13,7 +13,13 @@ alembic==1.13.1
 
 # Authentication & Security
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+passlib==1.7.4
+# passlib 1.7.4 (final release, 2020) is incompatible with bcrypt >= 4.1:
+# it reads bcrypt.__about__.__version__ (removed in 4.1) and its
+# detect_wrap_bug probe hashes a >72-byte string, which bcrypt >= 4.1
+# rejects with ValueError instead of truncating - breaking every
+# hash/verify call (all of register + login). Pin bcrypt to the last 4.0.x.
+bcrypt==4.0.1
 python-multipart==0.0.6
 
 # Task Queue & Background Processing

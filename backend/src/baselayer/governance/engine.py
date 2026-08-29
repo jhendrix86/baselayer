@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.governance import (
     GovernanceRule, AuditLog, ComplianceReport,
     RuleType, RuleStatus, ComplianceStatus
@@ -147,7 +147,7 @@ class GovernanceEngine:
             # Validate rule data
             await self._validate_rule_data(rule_type, conditions, actions)
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 rule = GovernanceRule(
                     name=name,
                     description=description,
@@ -384,7 +384,7 @@ class GovernanceEngine:
                 report_type, period_start, period_end, entity_type, entity_ids
             )
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 report = ComplianceReport(
                     report_type=report_type,
                     period_start=period_start or datetime.utcnow() - timedelta(days=30),
@@ -451,7 +451,7 @@ class GovernanceEngine:
         Returns:
             List[GovernanceRule]: List of rules
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(GovernanceRule).where(GovernanceRule.deleted_at.is_(None))
             
             if rule_type:
@@ -497,7 +497,7 @@ class GovernanceEngine:
             GovernanceError: If update fails
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(GovernanceRule).where(
                         GovernanceRule.id == uuid.UUID(rule_id),
@@ -572,7 +572,7 @@ class GovernanceEngine:
             bool: True if deleted successfully
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(GovernanceRule).where(
                         GovernanceRule.id == uuid.UUID(rule_id),
@@ -611,7 +611,7 @@ class GovernanceEngine:
             Dict[str, Any]: Governance summary
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get rule counts
                 result = await session.execute(
                     select(
@@ -636,11 +636,11 @@ class GovernanceEngine:
                 # Get compliance stats
                 result = await session.execute(
                     select(
-                        ComplianceReport.status,
+                        ComplianceReport.compliance_status,
                         func.count(ComplianceReport.id)
                     ).where(
                         ComplianceReport.deleted_at.is_(None)
-                    ).group_by(ComplianceReport.status)
+                    ).group_by(ComplianceReport.compliance_status)
                 )
                 compliance_counts = dict(result.all())
                 
@@ -866,7 +866,7 @@ class GovernanceEngine:
                 return cached_rule["rule"]
         
         # Load from database
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(GovernanceRule).where(
                     GovernanceRule.id == uuid.UUID(rule_id),
@@ -937,7 +937,7 @@ class GovernanceEngine:
     async def _update_governance_metrics(self) -> None:
         """Update governance metrics from database."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get current counts
                 result = await session.execute(
                     select(func.count(GovernanceRule.id)).where(GovernanceRule.deleted_at.is_(None))

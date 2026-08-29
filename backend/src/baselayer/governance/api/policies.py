@@ -81,6 +81,122 @@ async def list_policies(
     return [policy.to_dict() for policy in policies]
 
 
+@router.get("/types", response_model=List[Dict[str, Any]])
+async def get_policy_types(
+    current_user: User = Depends(get_current_user)
+) -> List[Dict[str, Any]]:
+    """
+    Get available policy types.
+    
+    Args:
+        current_user: Current authenticated user
+        
+    Returns:
+        List[Dict[str, Any]]: Available policy types
+    """
+    types = []
+    for rule_type in RuleType:
+        types.append({
+            "value": rule_type.value,
+            "name": rule_type.value.replace("_", " ").title(),
+            "description": f"{rule_type.value.replace('_', ' ').title()} policy"
+        })
+    
+    return types
+
+
+@router.get("/statistics", response_model=Dict[str, Any])
+async def get_policy_statistics(
+    period_start: Optional[datetime] = Query(None),
+    period_end: Optional[datetime] = Query(None),
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get policy statistics.
+    
+    Args:
+        period_start: Start of period
+        period_end: End of period
+        current_user: Current authenticated user
+        
+    Returns:
+        Dict[str, Any]: Policy statistics
+    """
+    engine = get_governance_engine()
+    
+    try:
+        statistics = await engine.get_governance_summary()
+        
+        return statistics
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/batch-enforce", response_model=Dict[str, Any])
+async def batch_enforce_policies(
+    policy_ids: List[str],
+    context: Dict[str, Any],
+    dry_run: bool = Query(False),
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Enforce multiple policies in batch.
+    
+    Args:
+        policy_ids: List of policy IDs
+        context: Enforcement context
+        dry_run: Whether to perform a dry run
+        current_user: Current authenticated user
+        
+    Returns:
+        Dict[str, Any]: Batch enforcement results
+    """
+    engine = get_governance_engine()
+    
+    results = []
+    successful = 0
+    failed = 0
+    
+    for policy_id in policy_ids:
+        try:
+            result = await engine.enforce_rule(
+                rule_id=policy_id,
+                context=context,
+                user_id=current_user.id
+            )
+            results.append(result)
+            
+            if result.get("enforced"):
+                successful += 1
+            else:
+                failed += 1
+                
+        except Exception as e:
+            failed += 1
+            results.append({
+                "policy_id": policy_id,
+                "enforced": False,
+                "error": str(e)
+            })
+    
+    logger.info(
+        "Batch policy enforcement completed via API",
+        total_policies=len(policy_ids),
+        successful=successful,
+        failed=failed,
+        user_id=str(current_user.id)
+    )
+    
+    return {
+        "total_policies": len(policy_ids),
+        "successful": successful,
+        "failed": failed,
+        "results": results,
+        "dry_run": dry_run
+    }
+
+
 @router.get("/{policy_id}", response_model=Dict[str, Any])
 async def get_policy(
     policy_id: str,
@@ -308,124 +424,6 @@ async def check_policy_compliance(
         
     except GovernanceError as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/types", response_model=List[Dict[str, Any]])
-async def get_policy_types(
-    current_user: User = Depends(get_current_user)
-) -> List[Dict[str, Any]]:
-    """
-    Get available policy types.
-    
-    Args:
-        current_user: Current authenticated user
-        
-    Returns:
-        List[Dict[str, Any]]: Available policy types
-    """
-    types = []
-    for rule_type in RuleType:
-        types.append({
-            "value": rule_type.value,
-            "name": rule_type.value.replace("_", " ").title(),
-            "description": f"{rule_type.value.replace('_', ' ').title()} policy"
-        })
-    
-    return types
-
-
-@router.get("/statistics", response_model=Dict[str, Any])
-async def get_policy_statistics(
-    period_start: Optional[datetime] = Query(None),
-    period_end: Optional[datetime] = Query(None),
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
-    """
-    Get policy statistics.
-    
-    Args:
-        period_start: Start of period
-        period_end: End of period
-        current_user: Current authenticated user
-        
-    Returns:
-        Dict[str, Any]: Policy statistics
-    """
-    engine = get_governance_engine()
-    
-    try:
-        statistics = await engine.get_governance_summary()
-        
-        return statistics
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/batch-enforce", response_model=Dict[str, Any])
-async def batch_enforce_policies(
-    policy_ids: List[str],
-    context: Dict[str, Any],
-    dry_run: bool = Query(False),
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
-    """
-    Enforce multiple policies in batch.
-    
-    Args:
-        policy_ids: List of policy IDs
-        context: Enforcement context
-        dry_run: Whether to perform a dry run
-        current_user: Current authenticated user
-        
-    Returns:
-        Dict[str, Any]: Batch enforcement results
-    """
-    engine = get_governance_engine()
-    
-    results = []
-    successful = 0
-    failed = 0
-    
-    for policy_id in policy_ids:
-        try:
-            result = await engine.enforce_rule(
-                rule_id=policy_id,
-                context=context,
-                user_id=current_user.id
-            )
-            results.append(result)
-            
-            if result.get("enforced"):
-                successful += 1
-            else:
-                failed += 1
-                
-        except Exception as e:
-            failed += 1
-            results.append({
-                "policy_id": policy_id,
-                "enforced": False,
-                "error": str(e)
-            })
-    
-    logger.info(
-        "Batch policy enforcement completed via API",
-        total_policies=len(policy_ids),
-        successful=successful,
-        failed=failed,
-        user_id=str(current_user.id)
-    )
-    
-    return {
-        "total_policies": len(policy_ids),
-        "successful": successful,
-        "failed": failed,
-        "results": results,
-        "dry_run": dry_run
-    }
-
-
 @router.get("/{policy_id}/history", response_model=List[Dict[str, Any]])
 async def get_policy_history(
     policy_id: str,

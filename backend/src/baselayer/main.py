@@ -41,6 +41,17 @@ from baselayer.core_loop.monitor import WorkflowMonitor
 from baselayer.core_loop.api import workflows as core_loop_workflows
 from baselayer.core_loop.api import executions as core_loop_executions
 from baselayer.core_loop.api import monitoring as core_loop_monitoring
+from baselayer.codex.engine import KnowledgeEngine
+from baselayer.codex.extractor import KnowledgeExtractor
+from baselayer.codex.analyzer import KnowledgeAnalyzer
+from baselayer.codex.api import knowledge as codex_knowledge
+from baselayer.agents.orchestrator import AgentOrchestrator
+from baselayer.agents.lifecycle import AgentLifecycleManager
+from baselayer.agents.api import agents as agents_api
+from baselayer.governance.engine import GovernanceEngine
+from baselayer.governance.api import policies as governance_policies
+from baselayer.output_engine.engine import OutputEngine
+from baselayer.output_engine.api import templates as output_engine_templates
 
 # Setup structured logging
 setup_logging()
@@ -106,6 +117,40 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     core_loop_monitoring.workflow_monitor = workflow_monitor
     core_loop_monitoring.workflow_scheduler = workflow_scheduler
     logger.info("Core loop initialized")
+
+    # Initialize codex / agents / governance / output_engine subsystems.
+    # Same bug shape as income_engine and core_loop above: each api/*.py
+    # module has a module-level engine/manager global that starts as None,
+    # and its get_x_engine() dependency raises 500 "not initialized" until
+    # something assigns it. Nothing did until now, so every endpoint in
+    # these four subsystems 500'd unconditionally even though the routers
+    # mounted fine. All seven engine classes take no constructor args.
+    # AgentLifecycleManager.start() (spawns a 30s health-check loop) is
+    # deliberately NOT called here - the CRUD endpoints don't need the
+    # loop, and its schema reconciliation with the models is still
+    # outstanding (see api/v1/router.py's docstring / OS42_REPAIR_PLAN.md).
+    # Each is wrapped independently: these subsystems' engine layers are
+    # only partially reconciled with their models (see api/v1/router.py's
+    # docstring), so a constructor may still raise on a stale reference.
+    # One failing here must not take down auth / income_engine / core_loop.
+    for _label, _init in (
+        ("codex", lambda: (
+            setattr(codex_knowledge, "knowledge_engine", KnowledgeEngine()),
+            setattr(codex_knowledge, "knowledge_extractor", KnowledgeExtractor()),
+            setattr(codex_knowledge, "knowledge_analyzer", KnowledgeAnalyzer()),
+        )),
+        ("agents", lambda: (
+            setattr(agents_api, "agent_orchestrator", AgentOrchestrator()),
+            setattr(agents_api, "lifecycle_manager", AgentLifecycleManager()),
+        )),
+        ("governance", lambda: setattr(governance_policies, "governance_engine", GovernanceEngine())),
+        ("output_engine", lambda: setattr(output_engine_templates, "output_engine", OutputEngine())),
+    ):
+        try:
+            _init()
+            logger.info(f"{_label} subsystem initialized")
+        except Exception as exc:  # noqa: BLE001 - deliberate: keep the API up
+            logger.error(f"{_label} subsystem init failed - its endpoints will 500", error=str(exc))
 
     # Initialize Redis connection
     # This will be implemented in Phase 4

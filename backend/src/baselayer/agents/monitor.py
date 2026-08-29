@@ -16,7 +16,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.agents import (
     Agent, AgentTask, AgentMetrics,
     AgentType, AgentStatus, TaskStatus
@@ -195,7 +195,7 @@ class AgentMonitor:
             Dict[str, Any]: Agent metrics
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.id == uuid.UUID(agent_id),
@@ -250,7 +250,7 @@ class AgentMonitor:
             await self._update_system_metrics()
             
             # Get agent statistics
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(
                         Agent.status,
@@ -430,7 +430,7 @@ class AgentMonitor:
     async def _calculate_agent_failure_rate(self, agent_id: str) -> float:
         """Calculate agent task failure rate."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(
                         func.count(func.nullif(AgentTask.status == 'failed', True)),
@@ -455,7 +455,7 @@ class AgentMonitor:
     async def _calculate_agent_response_time(self, agent_id: str) -> float:
         """Calculate average agent response time."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(
                         func.avg(
@@ -485,7 +485,7 @@ class AgentMonitor:
     async def _get_agent_task_metrics(self, agent_id: str) -> Dict[str, Any]:
         """Get task-related metrics for an agent."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(
                         func.count(AgentTask.id),
@@ -527,7 +527,7 @@ class AgentMonitor:
             # Get recent task completion rate
             recent_time = datetime.utcnow() - timedelta(hours=1)
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(
                         func.count(AgentTask.id),

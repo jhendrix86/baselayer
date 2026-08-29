@@ -14,7 +14,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.codex import (
     KnowledgeEntry, KnowledgeCategory, KnowledgeTag, SearchIndex,
     KnowledgeStatus, EntryType, KnowledgeType
@@ -86,7 +86,7 @@ async def process_pending_indexing(ctx: Dict[str, Any]) -> Dict[str, Any]:
     
     try:
         # Get entries that need indexing
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(KnowledgeEntry).where(
                     KnowledgeEntry.deleted_at.is_(None),
@@ -192,7 +192,7 @@ async def cleanup_old_entries(ctx: Dict[str, Any]) -> Dict[str, Any]:
     cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
     
     try:
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Soft delete old entries
             result = await session.execute(
                 select(KnowledgeEntry).where(
@@ -373,7 +373,7 @@ async def process_ai_analysis_queue(ctx: Dict[str, Any]) -> Dict[str, Any]:
     
     try:
         # Get entries that need AI analysis
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(KnowledgeEntry).where(
                     KnowledgeEntry.deleted_at.is_(None),
@@ -404,7 +404,7 @@ async def process_ai_analysis_queue(ctx: Dict[str, Any]) -> Dict[str, Any]:
                     "readability": analysis.get("readability")
                 }
                 
-                async with get_db_session() as update_session:
+                async with db_session_context() as update_session:
                     update_session.add(entry)
                     await update_session.commit()
                 
@@ -524,7 +524,7 @@ async def check_knowledge_health(ctx: Dict[str, Any]) -> Dict[str, Any]:
         
         # Check database connectivity
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 await session.execute("SELECT 1")
                 health_status["checks"]["database"] = {
                     "status": "healthy"

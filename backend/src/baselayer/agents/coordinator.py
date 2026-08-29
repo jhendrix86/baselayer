@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.agents import (
     Agent, AgentTask, AgentMetrics,
     AgentType, AgentStatus, TaskStatus
@@ -107,7 +107,7 @@ class TaskCoordinator:
             TaskCoordinationError: If task creation fails
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Create task
                 task = AgentTask(
                     task_type=task_type,
@@ -214,7 +214,7 @@ class TaskCoordinator:
             if not task:
                 raise TaskCoordinationError(f"Task not found: {task_id}")
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 if error:
                     # Task failed
                     task.status = TaskStatus.FAILED
@@ -325,7 +325,7 @@ class TaskCoordinator:
         Returns:
             List[AgentTask]: List of tasks
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(AgentTask).where(AgentTask.deleted_at.is_(None))
             
             if status:
@@ -353,7 +353,7 @@ class TaskCoordinator:
             Dict[str, Any]: Coordination statistics
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get task counts by status
                 result = await session.execute(
                     select(
@@ -457,7 +457,7 @@ class TaskCoordinator:
     async def _update_agent_loads(self) -> None:
         """Update agent load information."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(
                         Agent.id,
@@ -487,7 +487,7 @@ class TaskCoordinator:
         cutoff_time = datetime.utcnow() - timedelta(hours=24)
         
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(AgentTask).where(
                         AgentTask.status.in_([TaskStatus.COMPLETED, TaskStatus.FAILED]),
@@ -520,7 +520,7 @@ class TaskCoordinator:
     async def _round_robin_strategy(self, task: AgentTask) -> Optional[Agent]:
         """Round-robin task assignment strategy."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.status == AgentStatus.ACTIVE,
@@ -559,7 +559,7 @@ class TaskCoordinator:
     async def _load_balanced_strategy(self, task: AgentTask) -> Optional[Agent]:
         """Load-balanced task assignment strategy."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.status == AgentStatus.ACTIVE,
@@ -596,7 +596,7 @@ class TaskCoordinator:
     async def _priority_based_strategy(self, task: AgentTask) -> Optional[Agent]:
         """Priority-based task assignment strategy."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.status == AgentStatus.ACTIVE,
@@ -633,7 +633,7 @@ class TaskCoordinator:
     async def _capability_based_strategy(self, task: AgentTask) -> Optional[Agent]:
         """Capability-based task assignment strategy."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.status == AgentStatus.ACTIVE,
@@ -679,7 +679,7 @@ class TaskCoordinator:
     
     async def _assign_task_to_agent(self, agent: Agent, task: AgentTask) -> None:
         """Assign a task to an agent."""
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Update task
             task.agent_id = agent.id
             task.status = TaskStatus.ASSIGNED
@@ -699,7 +699,7 @@ class TaskCoordinator:
     async def _update_agent_metrics(self, agent_id: uuid.UUID, success: bool) -> None:
         """Update agent performance metrics."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(Agent.id == agent_id)
                 )
@@ -724,7 +724,7 @@ class TaskCoordinator:
     async def _calculate_average_task_time(self) -> float:
         """Calculate average task completion time."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(func.avg(
                         func.extract('epoch', AgentTask.completed_at) - 
@@ -750,7 +750,7 @@ class TaskCoordinator:
     async def _calculate_success_rate(self) -> float:
         """Calculate task success rate."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(
                         func.count(func.nullif(AgentTask.status == 'completed', True)),
@@ -774,7 +774,7 @@ class TaskCoordinator:
     async def _calculate_retry_rate(self) -> float:
         """Calculate task retry rate."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(
                         func.count(func.nullif(AgentTask.retry_count > 0, True)),

@@ -25,6 +25,8 @@ class AgentType(str, Enum):
     SUPERVISOR = "supervisor"
     SPECIALIST = "specialist"
     GATEWAY = "gateway"
+    ANALYZER = "analyzer"
+    MONITOR = "monitor"
 
 
 class AgentStatus(str, Enum):
@@ -821,3 +823,96 @@ class AgentMetrics(BaseModel):
         self.memory_usage_avg = str(memory_usage)
         self.disk_io_avg = str(disk_io)
         self.network_io_avg = str(network_io)
+
+
+class AgentMessage(BaseModel):
+    """
+    Inter-agent message.
+
+    Persists messages exchanged between agents by the AgentCommunicator
+    (see agents/communicator.py). `message_type`, `priority` and `status`
+    are stored as plain strings, not enums: the communicator owns its own
+    `MessageType`/`MessagePriority` enums and always writes their `.value`,
+    and the protocol set is open-ended (direct/broadcast/multicast/pubsub).
+    """
+
+    __tablename__ = "agent_messages"
+
+    # Routing
+    sender_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUIDType(as_uuid=True),
+        ForeignKey("agents.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Sending agent (null for system/orchestrator-originated messages)"
+    )
+
+    recipient_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUIDType(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="Receiving agent"
+    )
+
+    # Content
+    message_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        index=True,
+        comment="Message type (communicator MessageType value)"
+    )
+
+    message_data: Mapped[Dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        comment="Message payload"
+    )
+
+    # Delivery
+    priority: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="medium",
+        comment="Message priority (communicator MessagePriority value)"
+    )
+
+    protocol: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="direct",
+        comment="Delivery protocol (direct/broadcast/multicast/publish_subscribe)"
+    )
+
+    timeout: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Delivery timeout in seconds"
+    )
+
+    correlation_id: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        index=True,
+        comment="Correlation id for request/response pairing"
+    )
+
+    reply_to: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="Id of the message this one replies to"
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="sent",
+        index=True,
+        comment="Delivery status (sent/delivered/processed/failed)"
+    )
+
+    processed_at: Mapped[datetime | None] = mapped_column(
+        nullable=True,
+        comment="When the recipient finished processing the message"
+    )

@@ -9,11 +9,12 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from structlog import get_logger
 
-from ...core.database import get_db_session
+from ...core.database import db_session_context
 from ...models.agents import (
     Agent, AgentTask,
     AgentType, AgentStatus
@@ -84,6 +85,87 @@ async def list_agents(
     )
     
     return [agent.to_dict() for agent in agents]
+
+
+@router.get("/types", response_model=List[Dict[str, Any]])
+async def get_agent_types(
+    current_user: User = Depends(get_current_user)
+) -> List[Dict[str, Any]]:
+    """
+    Get available agent types.
+    
+    Args:
+        current_user: Current authenticated user
+        
+    Returns:
+        List[Dict[str, Any]]: Available agent types
+    """
+    types = []
+    for agent_type in AgentType:
+        types.append({
+            "value": agent_type.value,
+            "name": agent_type.value.replace("_", " ").title(),
+            "description": f"{agent_type.value.replace('_', ' ').title()} agent"
+        })
+    
+    return types
+
+
+@router.get("/statistics", response_model=Dict[str, Any])
+async def get_agent_statistics(
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get agent statistics.
+    
+    Args:
+        current_user: Current authenticated user
+        
+    Returns:
+        Dict[str, Any]: Agent statistics
+    """
+    try:
+        async with db_session_context() as session:
+            # Get agent counts by status
+            result = await session.execute(
+                select(
+                    Agent.status,
+                    func.count(Agent.id)
+                ).where(
+                    Agent.deleted_at.is_(None)
+                ).group_by(Agent.status)
+            )
+            status_counts = dict(result.all())
+            
+            # Get agent counts by type
+            result = await session.execute(
+                select(
+                    Agent.agent_type,
+                    func.count(Agent.id)
+                ).where(
+                    Agent.deleted_at.is_(None)
+                ).group_by(Agent.agent_type)
+            )
+            type_counts = dict(result.all())
+            
+            # Get total tasks
+            result = await session.execute(
+                select(func.count(AgentTask.id)).where(AgentTask.deleted_at.is_(None))
+            )
+            total_tasks = result.scalar() or 0
+            
+            statistics = {
+                "total_agents": sum(status_counts.values()),
+                "by_status": status_counts,
+                "by_type": type_counts,
+                "total_tasks": total_tasks,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            return statistics
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{agent_id}", response_model=Dict[str, Any])
@@ -322,7 +404,7 @@ async def get_agent_health(
         Dict[str, Any]: Agent health status
     """
     try:
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(Agent).where(
                     Agent.id == uuid.UUID(agent_id),
@@ -369,7 +451,7 @@ async def get_agent_tasks(
         List[Dict[str, Any]]: List of tasks
     """
     try:
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(AgentTask).where(
                 AgentTask.agent_id == uuid.UUID(agent_id),
                 AgentTask.deleted_at.is_(None)
@@ -388,86 +470,5 @@ async def get_agent_tasks(
             
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid agent ID")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/types", response_model=List[Dict[str, Any]])
-async def get_agent_types(
-    current_user: User = Depends(get_current_user)
-) -> List[Dict[str, Any]]:
-    """
-    Get available agent types.
-    
-    Args:
-        current_user: Current authenticated user
-        
-    Returns:
-        List[Dict[str, Any]]: Available agent types
-    """
-    types = []
-    for agent_type in AgentType:
-        types.append({
-            "value": agent_type.value,
-            "name": agent_type.value.replace("_", " ").title(),
-            "description": f"{agent_type.value.replace('_', ' ').title()} agent"
-        })
-    
-    return types
-
-
-@router.get("/statistics", response_model=Dict[str, Any])
-async def get_agent_statistics(
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
-    """
-    Get agent statistics.
-    
-    Args:
-        current_user: Current authenticated user
-        
-    Returns:
-        Dict[str, Any]: Agent statistics
-    """
-    try:
-        async with get_db_session() as session:
-            # Get agent counts by status
-            result = await session.execute(
-                select(
-                    Agent.status,
-                    func.count(Agent.id)
-                ).where(
-                    Agent.deleted_at.is_(None)
-                ).group_by(Agent.status)
-            )
-            status_counts = dict(result.all())
-            
-            # Get agent counts by type
-            result = await session.execute(
-                select(
-                    Agent.agent_type,
-                    func.count(Agent.id)
-                ).where(
-                    Agent.deleted_at.is_(None)
-                ).group_by(Agent.agent_type)
-            )
-            type_counts = dict(result.all())
-            
-            # Get total tasks
-            result = await session.execute(
-                select(func.count(AgentTask.id)).where(AgentTask.deleted_at.is_(None))
-            )
-            total_tasks = result.scalar() or 0
-            
-            statistics = {
-                "total_agents": sum(status_counts.values()),
-                "by_status": status_counts,
-                "by_type": type_counts,
-                "total_tasks": total_tasks,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
-            return statistics
-            
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

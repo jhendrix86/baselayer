@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.governance import (
     GovernanceRule, AuditLog,
     RuleType, RuleStatus
@@ -149,7 +149,7 @@ class PolicyManager:
             default_actions = self.policy_types[policy_type]["default_actions"]
             actions = [{"type": action} for action in default_actions]
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 policy = GovernanceRule(
                     name=name,
                     description=description,
@@ -373,7 +373,7 @@ class PolicyManager:
         Returns:
             List[GovernanceRule]: List of policies
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(GovernanceRule).where(GovernanceRule.deleted_at.is_(None))
             
             if policy_type:
@@ -420,7 +420,7 @@ class PolicyManager:
             PolicyError: If update fails
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(GovernanceRule).where(
                         GovernanceRule.id == uuid.UUID(policy_id),
@@ -499,7 +499,7 @@ class PolicyManager:
             bool: True if deleted successfully
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(GovernanceRule).where(
                         GovernanceRule.id == uuid.UUID(policy_id),
@@ -546,7 +546,7 @@ class PolicyManager:
             Dict[str, Any]: Policy statistics
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get policy counts by type
                 query = select(GovernanceRule).where(GovernanceRule.deleted_at.is_(None))
                 
@@ -811,7 +811,7 @@ class PolicyManager:
     ) -> None:
         """Log policy enforcement."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 audit_log = AuditLog(
                     event_type="policy_enforcement",
                     resource_id=str(policy.id),
@@ -854,7 +854,7 @@ class PolicyManager:
                 return cached_policy["policy"]
         
         # Load from database
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(GovernanceRule).where(
                     GovernanceRule.id == uuid.UUID(policy_id),

@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.output_engine import (
     OutputTemplate, GeneratedOutput, DeliveryLog,
     TemplateType, OutputStatus, DeliveryStatus
@@ -110,7 +110,7 @@ class OutputEngine:
             if variables is None:
                 variables = await self._extract_template_variables(content, engine)
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 template = OutputTemplate(
                     name=name,
                     content=content,
@@ -274,7 +274,7 @@ class OutputEngine:
                 return cached_template["template"]
         
         # Load from database
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(OutputTemplate).where(
                     OutputTemplate.id == uuid.UUID(template_id),
@@ -310,7 +310,7 @@ class OutputEngine:
         Returns:
             List[OutputTemplate]: List of templates
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(OutputTemplate).where(OutputTemplate.deleted_at.is_(None))
             
             if template_type:
@@ -352,7 +352,7 @@ class OutputEngine:
         Raises:
             TemplateNotFoundError: If template not found
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(OutputTemplate).where(
                     OutputTemplate.id == uuid.UUID(template_id),
@@ -420,7 +420,7 @@ class OutputEngine:
         Returns:
             bool: True if deleted successfully
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(OutputTemplate).where(
                     OutputTemplate.id == uuid.UUID(template_id),
@@ -477,7 +477,7 @@ class OutputEngine:
                 return cached_output["output"]
         
         # Load from database
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(GeneratedOutput).where(
                     GeneratedOutput.id == uuid.UUID(output_id),
@@ -513,7 +513,7 @@ class OutputEngine:
         Returns:
             List[GeneratedOutput]: List of outputs
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(GeneratedOutput).where(GeneratedOutput.deleted_at.is_(None))
             
             if template_id:
@@ -548,7 +548,7 @@ class OutputEngine:
         Returns:
             Dict[str, Any]: Generation statistics
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(GeneratedOutput).where(GeneratedOutput.deleted_at.is_(None))
             
             if period_start:

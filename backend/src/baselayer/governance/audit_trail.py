@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.governance import AuditLog
 from ..models.user import User
 from .exceptions import (
@@ -242,7 +242,7 @@ class AuditTrail:
             List[AuditLog]: Audit log entries
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 query_builder = select(AuditLog).where(AuditLog.deleted_at.is_(None))
                 
                 # Apply filters
@@ -314,7 +314,7 @@ class AuditTrail:
             if not period_end:
                 period_end = datetime.utcnow()
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Total events
                 result = await session.execute(
                     select(func.count(AuditLog.id)).where(
@@ -456,7 +456,7 @@ class AuditTrail:
             max_age_days = max_age_days or self.retention_days
             cutoff_date = datetime.utcnow() - timedelta(days=max_age_days)
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(AuditLog).where(
                         AuditLog.created_at < cutoff_date,
@@ -521,7 +521,7 @@ class AuditTrail:
         try:
             start_time = datetime.utcnow()
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 for audit_log in batch:
                     session.add(audit_log)
                 

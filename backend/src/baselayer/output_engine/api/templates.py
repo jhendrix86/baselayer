@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from structlog import get_logger
 
-from ...core.database import get_db_session
+from ...core.database import db_session_context
 from ...models.output_engine import (
     OutputTemplate, TemplateType
 )
@@ -76,6 +76,90 @@ async def list_templates(
     )
     
     return [template.to_dict() for template in templates]
+
+
+@router.get("/types", response_model=List[Dict[str, Any]])
+async def get_template_types(
+    current_user: User = Depends(get_current_user)
+) -> List[Dict[str, Any]]:
+    """
+    Get available template types.
+    
+    Args:
+        current_user: Current authenticated user
+        
+    Returns:
+        List[Dict[str, Any]]: Available template types
+    """
+    types = []
+    for template_type in TemplateType:
+        types.append({
+            "value": template_type.value,
+            "name": template_type.value.replace("_", " ").title(),
+            "description": f"{template_type.value.replace('_', ' ').title()} template"
+        })
+    
+    return types
+
+
+@router.get("/statistics", response_model=Dict[str, Any])
+async def get_template_statistics(
+    period_start: Optional[datetime] = Query(None),
+    period_end: Optional[datetime] = Query(None),
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get template statistics.
+    
+    Args:
+        period_start: Start of period
+        period_end: End of period
+        current_user: Current authenticated user
+        
+    Returns:
+        Dict[str, Any]: Template statistics
+    """
+    try:
+        async with db_session_context() as session:
+            # Get template counts by type
+            result = await session.execute(
+                select(
+                    OutputTemplate.template_type,
+                    func.count(OutputTemplate.id)
+                ).where(
+                    OutputTemplate.deleted_at.is_(None)
+                ).group_by(OutputTemplate.template_type)
+            )
+            type_counts = dict(result.all())
+            
+            # Get template counts by status
+            result = await session.execute(
+                select(
+                    OutputTemplate.status,
+                    func.count(OutputTemplate.id)
+                ).where(
+                    OutputTemplate.deleted_at.is_(None)
+                ).group_by(OutputTemplate.status)
+            )
+            status_counts = dict(result.all())
+            
+            # Get total templates
+            result = await session.execute(
+                select(func.count(OutputTemplate.id)).where(OutputTemplate.deleted_at.is_(None))
+            )
+            total_templates = result.scalar() or 0
+            
+            statistics = {
+                "total_templates": total_templates,
+                "by_type": type_counts,
+                "by_status": status_counts,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            return statistics
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{template_id}", response_model=Dict[str, Any])
@@ -305,87 +389,3 @@ async def preview_template(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Preview failed: {str(e)}")
-
-
-@router.get("/types", response_model=List[Dict[str, Any]])
-async def get_template_types(
-    current_user: User = Depends(get_current_user)
-) -> List[Dict[str, Any]]:
-    """
-    Get available template types.
-    
-    Args:
-        current_user: Current authenticated user
-        
-    Returns:
-        List[Dict[str, Any]]: Available template types
-    """
-    types = []
-    for template_type in TemplateType:
-        types.append({
-            "value": template_type.value,
-            "name": template_type.value.replace("_", " ").title(),
-            "description": f"{template_type.value.replace('_', ' ').title()} template"
-        })
-    
-    return types
-
-
-@router.get("/statistics", response_model=Dict[str, Any])
-async def get_template_statistics(
-    period_start: Optional[datetime] = Query(None),
-    period_end: Optional[datetime] = Query(None),
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
-    """
-    Get template statistics.
-    
-    Args:
-        period_start: Start of period
-        period_end: End of period
-        current_user: Current authenticated user
-        
-    Returns:
-        Dict[str, Any]: Template statistics
-    """
-    try:
-        async with get_db_session() as session:
-            # Get template counts by type
-            result = await session.execute(
-                select(
-                    OutputTemplate.template_type,
-                    func.count(OutputTemplate.id)
-                ).where(
-                    OutputTemplate.deleted_at.is_(None)
-                ).group_by(OutputTemplate.template_type)
-            )
-            type_counts = dict(result.all())
-            
-            # Get template counts by status
-            result = await session.execute(
-                select(
-                    OutputTemplate.status,
-                    func.count(OutputTemplate.id)
-                ).where(
-                    OutputTemplate.deleted_at.is_(None)
-                ).group_by(OutputTemplate.status)
-            )
-            status_counts = dict(result.all())
-            
-            # Get total templates
-            result = await session.execute(
-                select(func.count(OutputTemplate.id)).where(OutputTemplate.deleted_at.is_(None))
-            )
-            total_templates = result.scalar() or 0
-            
-            statistics = {
-                "total_templates": total_templates,
-                "by_type": type_counts,
-                "by_status": status_counts,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
-            return statistics
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

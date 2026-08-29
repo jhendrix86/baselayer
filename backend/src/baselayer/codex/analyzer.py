@@ -16,7 +16,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.codex import (
     KnowledgeEntry, KnowledgeCategory, KnowledgeTag,
     KnowledgeType, EntryType, KnowledgeStatus
@@ -224,7 +224,7 @@ class KnowledgeAnalyzer:
             Dict[str, Any]: Knowledge insights
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get entry statistics
                 result = await session.execute(
                     select(
@@ -620,7 +620,7 @@ class KnowledgeAnalyzer:
             suggestions = []
             
             # Get available categories
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(KnowledgeCategory).where(
                         KnowledgeCategory.deleted_at.is_(None)
@@ -803,7 +803,7 @@ class KnowledgeAnalyzer:
     ) -> Dict[str, Any]:
         """Analyze trends in knowledge creation."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get daily creation counts
                 result = await session.execute(
                     select(
@@ -848,7 +848,7 @@ class KnowledgeAnalyzer:
     ) -> Dict[str, Any]:
         """Analyze quality metrics for knowledge entries."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get average content length
                 result = await session.execute(
                     select(func.avg(func.length(KnowledgeEntry.content))).where(

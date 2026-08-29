@@ -17,7 +17,7 @@ from sqlalchemy import update
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.codex import KnowledgeEntry, SearchIndex
 from .exceptions import IndexError, AIModelError
 
@@ -163,7 +163,7 @@ class KnowledgeIndexer:
         Args:
             entry: Knowledge entry to index
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             try:
                 # Extract content and metadata
                 content = self._extract_content(entry)
@@ -205,7 +205,7 @@ class KnowledgeIndexer:
         Args:
             entry: Knowledge entry to update
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             try:
                 # Get existing index
                 result = await session.execute(
@@ -252,7 +252,7 @@ class KnowledgeIndexer:
         Args:
             entry_id: Entry ID to remove
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             try:
                 result = await session.execute(
                     select(SearchIndex).where(
@@ -441,7 +441,7 @@ class KnowledgeIndexer:
         Returns:
             Dict[str, Any]: Reindexing results
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get all entries
             result = await session.execute(
                 select(KnowledgeEntry).where(
@@ -486,7 +486,7 @@ class KnowledgeIndexer:
         Returns:
             Dict[str, Any]: Optimization results
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             try:
                 # Update PostgreSQL statistics
                 await session.execute("ANALYZE search_index")
@@ -519,7 +519,7 @@ class KnowledgeIndexer:
         Returns:
             Dict[str, Any]: Index statistics
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get total indexed entries
             result = await session.execute(
                 select(func.count(SearchIndex.id))
@@ -567,7 +567,7 @@ class KnowledgeIndexer:
         Returns:
             Dict[str, Any]: Rebuild results
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Get entries in category
             result = await session.execute(
                 select(KnowledgeEntry).where(

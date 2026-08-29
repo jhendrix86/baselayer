@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.output_engine import (
     OutputTemplate, GeneratedOutput,
     OutputStatus
@@ -102,7 +102,7 @@ class OutputGenerator:
                 template, rendered_content, formatted_output, output_format
             )
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Create output record
                 output = GeneratedOutput(
                     template_id=template.id,
@@ -164,7 +164,7 @@ class OutputGenerator:
             GenerationError: If scheduling fails
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Create pending output record
                 output = GeneratedOutput(
                     template_id=uuid.UUID(template_id),
@@ -213,7 +213,7 @@ class OutputGenerator:
         Returns:
             GeneratedOutput: Generated output or None
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(GeneratedOutput).where(
                     GeneratedOutput.id == uuid.UUID(output_id),
@@ -254,7 +254,7 @@ class OutputGenerator:
         Returns:
             List[GeneratedOutput]: List of outputs
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(GeneratedOutput).where(GeneratedOutput.deleted_at.is_(None))
             
             if template_id:
@@ -297,7 +297,7 @@ class OutputGenerator:
             bool: True if updated successfully
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(GeneratedOutput).where(
                         GeneratedOutput.id == uuid.UUID(output_id),
@@ -353,7 +353,7 @@ class OutputGenerator:
             bool: True if deleted successfully
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(GeneratedOutput).where(
                         GeneratedOutput.id == uuid.UUID(output_id),
@@ -399,7 +399,7 @@ class OutputGenerator:
         cutoff_date = datetime.utcnow() - timedelta(days=max_age_days)
         
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(GeneratedOutput).where(
                         GeneratedOutput.created_at < cutoff_date,
@@ -450,7 +450,7 @@ class OutputGenerator:
         Returns:
             Dict[str, Any]: Generation statistics
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(GeneratedOutput).where(GeneratedOutput.deleted_at.is_(None))
             
             if period_start:
@@ -524,7 +524,7 @@ class OutputGenerator:
             await self.update_output_status(str(output.id), OutputStatus.PROCESSING)
             
             # Get template
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(OutputTemplate).where(
                         OutputTemplate.id == output.template_id,
@@ -554,7 +554,7 @@ class OutputGenerator:
             output.completed_at = datetime.utcnow()
             output.generation_time = 1.0  # Simulated
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 session.add(output)
                 await session.commit()
             

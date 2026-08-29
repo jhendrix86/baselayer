@@ -14,7 +14,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.agents import (
     Agent, AgentTask, AgentMetrics,
     AgentType, AgentStatus, TaskStatus
@@ -81,7 +81,7 @@ async def process_agent_health_checks(ctx: Dict[str, Any]) -> Dict[str, Any]:
     
     try:
         # Get all active agents
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(Agent).where(
                     Agent.status == AgentStatus.ACTIVE,
@@ -192,7 +192,7 @@ async def process_task_cleanup(ctx: Dict[str, Any]) -> Dict[str, Any]:
     cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
     
     try:
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Soft delete old tasks
             result = await session.execute(
                 select(AgentTask).where(
@@ -252,7 +252,7 @@ async def process_agent_metrics_collection(ctx: Dict[str, Any]) -> Dict[str, Any
         system_metrics = await agent_monitor.get_system_metrics()
         
         # Get individual agent metrics
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(Agent).where(
                     Agent.status == AgentStatus.ACTIVE,

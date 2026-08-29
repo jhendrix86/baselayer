@@ -12,7 +12,7 @@ from .core_loop import Workflow, WorkflowExecution, WorkflowStep
 from .income_engine import RevenueStream, RevenueTransaction, RevenueMetrics
 from .codex import KnowledgeEntry, KnowledgeCategory, KnowledgeTag
 from .protocols import Protocol, ProtocolTemplate, ProtocolVariable
-from .agents import Agent, AgentTask, AgentMetrics
+from .agents import Agent, AgentTask, AgentMetrics, AgentMessage
 from .governance import GovernanceRule, AuditLog, ComplianceReport
 from .output_engine import OutputTemplate, GeneratedOutput, DeliveryLog
 
@@ -44,6 +44,7 @@ __all__ = [
     "Agent",
     "AgentTask",
     "AgentMetrics",
+    "AgentMessage",
     # Governance/Doctrine
     "GovernanceRule",
     "AuditLog",

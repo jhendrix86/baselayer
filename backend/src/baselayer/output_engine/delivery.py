@@ -16,7 +16,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.output_engine import (
     GeneratedOutput, DeliveryLog,
     DeliveryStatus, DeliveryMethod
@@ -128,7 +128,7 @@ class OutputDelivery:
             # Validate inputs
             await self._validate_delivery_inputs(output, delivery_method, recipients)
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Create delivery log
                 delivery_log = DeliveryLog(
                     output_id=output.id,
@@ -189,7 +189,7 @@ class OutputDelivery:
         """
         try:
             # Create delivery log
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 delivery_log = DeliveryLog(
                     output_id=output.id,
                     delivery_method=DeliveryMethod(delivery_method),
@@ -225,7 +225,7 @@ class OutputDelivery:
         Returns:
             DeliveryLog: Delivery log or None
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(DeliveryLog).where(
                     DeliveryLog.id == uuid.UUID(delivery_id),
@@ -255,7 +255,7 @@ class OutputDelivery:
         Returns:
             List[DeliveryLog]: List of delivery logs
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(DeliveryLog).where(DeliveryLog.deleted_at.is_(None))
             
             if output_id:
@@ -289,7 +289,7 @@ class OutputDelivery:
             bool: True if retry scheduled successfully
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(DeliveryLog).where(
                         DeliveryLog.id == uuid.UUID(delivery_id),
@@ -352,7 +352,7 @@ class OutputDelivery:
             bool: True if cancelled successfully
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(DeliveryLog).where(
                         DeliveryLog.id == uuid.UUID(delivery_id),
@@ -407,7 +407,7 @@ class OutputDelivery:
         Returns:
             Dict[str, Any]: Delivery statistics
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(DeliveryLog).where(DeliveryLog.deleted_at.is_(None))
             
             if period_start:
@@ -483,7 +483,7 @@ class OutputDelivery:
             await self._update_delivery_status(delivery_log, DeliveryStatus.PROCESSING)
             
             # Get output
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(GeneratedOutput).where(
                         GeneratedOutput.id == delivery_log.output_id,
@@ -722,7 +722,7 @@ class OutputDelivery:
     ) -> None:
         """Update delivery log status."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 delivery_log.status = status
                 delivery_log.updated_at = datetime.utcnow()
                 

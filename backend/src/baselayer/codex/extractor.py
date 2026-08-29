@@ -15,9 +15,10 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 import aiofiles
 import aiohttp
+from sqlalchemy.ext.asyncio import AsyncSession
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.codex import (
     KnowledgeEntry, KnowledgeCategory, KnowledgeTag,
     KnowledgeType, EntryType, KnowledgeStatus
@@ -250,7 +251,7 @@ class KnowledgeExtractor:
             extracted_data = await self._extract_html_content(content, url)
             
             # Create knowledge entry
-            async with get_db_session() as db_session:
+            async with db_session_context() as db_session:
                 entry = KnowledgeEntry(
                     title=extracted_data["title"],
                     content=extracted_data["content"],
@@ -328,7 +329,7 @@ class KnowledgeExtractor:
                 extracted_data = await self._extract_plain_text_content(content, file_path)
             
             # Create knowledge entry
-            async with get_db_session() as db_session:
+            async with db_session_context() as db_session:
                 entry = KnowledgeEntry(
                     title=extracted_data["title"],
                     content=extracted_data["content"],
@@ -394,7 +395,7 @@ class KnowledgeExtractor:
             extracted_data = await self._extract_text_content(content, title)
             
             # Create knowledge entry
-            async with get_db_session() as db_session:
+            async with db_session_context() as db_session:
                 entry = KnowledgeEntry(
                     title=title,
                     content=extracted_data["content"],

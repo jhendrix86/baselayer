@@ -17,7 +17,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.agents import (
     Agent, AgentMessage,
     AgentType, AgentStatus
@@ -314,7 +314,7 @@ class AgentCommunicator:
             List[AgentMessage]: Message history
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 query = select(AgentMessage).where(AgentMessage.deleted_at.is_(None))
                 
                 if agent_id:
@@ -346,7 +346,7 @@ class AgentCommunicator:
             Dict[str, Any]: Communication statistics
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get message counts by type
                 result = await session.execute(
                     select(
@@ -440,7 +440,7 @@ class AgentCommunicator:
     async def _broadcast_protocol(self, message: AgentMessage) -> None:
         """Broadcast protocol - send to all agents."""
         # Get all active agents
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             result = await session.execute(
                 select(Agent).where(
                     Agent.status == AgentStatus.ACTIVE,
@@ -487,7 +487,7 @@ class AgentCommunicator:
     
     async def _store_message(self, message: AgentMessage) -> None:
         """Store message in database."""
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             session.add(message)
             await session.commit()
             
@@ -504,14 +504,14 @@ class AgentCommunicator:
     
     async def _update_message(self, message: AgentMessage) -> None:
         """Update message in database."""
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             session.add(message)
             await session.commit()
     
     async def _validate_agent(self, agent_id: str) -> bool:
         """Validate that an agent exists and is active."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.id == uuid.UUID(agent_id),
@@ -545,7 +545,7 @@ class AgentCommunicator:
     ) -> List[str]:
         """Get target agents for broadcast."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 query = select(Agent).where(
                     Agent.status == AgentStatus.ACTIVE,
                     Agent.deleted_at.is_(None)
@@ -589,7 +589,7 @@ class AgentCommunicator:
         
         # Update agent last activity
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(Agent.id == uuid.UUID(agent_id))
                 )
@@ -614,7 +614,7 @@ class AgentCommunicator:
         
         if new_status:
             try:
-                async with get_db_session() as session:
+                async with db_session_context() as session:
                     result = await session.execute(
                         select(Agent).where(Agent.id == uuid.UUID(agent_id))
                     )

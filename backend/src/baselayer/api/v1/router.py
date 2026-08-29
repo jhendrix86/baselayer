@@ -3,22 +3,33 @@ BaseLayer API v1 Router
 
 Main router for API v1 endpoints.
 
-Subsystem routers are imported defensively: several subsystems (codex,
-agents, governance, output_engine, as of this writing) have pre-existing
-import errors that would otherwise take down the entire API if imported
-unconditionally at module level. A broken subsystem is logged and skipped
-rather than blocking every other subsystem, including the ones that work.
+Subsystem routers are imported defensively: a broken subsystem is logged
+and skipped rather than blocking every other subsystem, including the ones
+that work. As of 2026-08-29 all six mounted subsystems load cleanly - the
+try/except is kept as a guard for future breakage, not because anything
+is currently failing.
 
-Current known causes (see `OS42_REPAIR_PLAN.md` for status): codex and
-output_engine each reference an enum/column (`EntryType`, `TemplateType`)
-that was never added to their models file - a real rename mismatch between
-the model and the code that consumes it, not a 1-line fix, since the
-model's existing enum values don't cover what the consuming code needs.
-agents references a whole `AgentMessage` model that doesn't exist yet.
-governance's `RuleStatus` mismatch is fixed (was the same shape as
-codex/output_engine's), but governance/api/__init__.py still imports 5
-router modules (compliance, audit, risk, automation, dashboard) of which
-only policies.py exists on disk.
+History (see `OS42_REPAIR_PLAN.md` / `HANDOFF.md`): codex, agents,
+governance and output_engine were each offline for a distinct
+import-time reason, all fixed 2026-08-29 -
+  * codex: `EntryType` enum + `KnowledgeEntry.entry_type` column added to
+    models/codex.py; a missing `AsyncSession` import in codex/extractor.py.
+  * agents: `AgentMessage` model added to models/agents.py.
+  * output_engine: `TemplateType` / `OutputStatus` enums added to
+    models/output_engine.py.
+  * codex/agents/governance/output_engine api/__init__.py each imported
+    4-5 router submodules that don't exist on disk (only knowledge /
+    agents / policies / templates respectively do); trimmed to what
+    exists. Add the rest back here and in _SUBSYSTEM_ROUTERS as their
+    router modules get written.
+
+Still outstanding (runtime, not load-time): the codex / output_engine
+engine layers were written against an older model shape (e.g.
+`create_template(content=, engine=, status=, template_type=)` vs. the
+model's `template_content` / `output_type` / no such columns), and their
+internal `async with get_db_session()` calls use the FastAPI-dependency
+generator as a context manager. Those paths will 500 until reconciled -
+tracked in OS42_REPAIR_PLAN.md.
 """
 
 import structlog

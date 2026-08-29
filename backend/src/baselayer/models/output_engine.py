@@ -58,6 +58,32 @@ class DeliveryStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class TemplateType(str, Enum):
+    """
+    Output-template classification.
+
+    Parallels OutputType (what a rendered output *is*); this classifies
+    the template that produces it. Kept as an open-ended string enum -
+    output_engine/api/templates.py enumerates `TemplateType` to advertise
+    the available kinds and never hard-codes individual members.
+    """
+    REPORT = "report"
+    DOCUMENT = "document"
+    EMAIL = "email"
+    NOTIFICATION = "notification"
+    DASHBOARD = "dashboard"
+    EXPORT = "export"
+
+
+class OutputStatus(str, Enum):
+    """Lifecycle status of a generated output."""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
 class OutputTemplate(BaseModel):
     """
     Output template model for Output Engineering subsystem.
@@ -88,6 +114,12 @@ class OutputTemplate(BaseModel):
         index=True,
         comment="Type of output"
     )
+    # NOTE: output_engine/engine.py and api/templates.py also reference a
+    # `template_type` column (and `content`/`engine`/`status` on create) that
+    # this model doesn't have - the engine layer was written against an older
+    # model shape. Adding just `template_type` here is not enough and briefly
+    # broke `GET /templates/` (model column with no DB column). Left for the
+    # full output_engine model<->engine reconciliation - see OS42_REPAIR_PLAN.md.
     
     output_format: Mapped[OutputFormat] = mapped_column(
         ENUM(OutputFormat, name="output_format"),

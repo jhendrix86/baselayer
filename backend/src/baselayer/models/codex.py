@@ -28,6 +28,22 @@ class KnowledgeType(str, Enum):
     CODE = "code"
 
 
+class EntryType(str, Enum):
+    """
+    Presentation/format classification of a knowledge entry.
+
+    Distinct from KnowledgeType (which classifies the *nature* of the
+    knowledge); this classifies the *shape* of the content, and is what
+    the codex analyzer infers from title/content heuristics
+    (see codex/analyzer.py `_suggest_entry_type`).
+    """
+    DOCUMENT = "document"
+    CODE = "code"
+    FAQ = "faq"
+    TUTORIAL = "tutorial"
+    ARTICLE = "article"
+
+
 class KnowledgeStatus(str, Enum):
     """Knowledge entry status."""
     DRAFT = "draft"
@@ -79,6 +95,14 @@ class KnowledgeEntry(BaseModel):
         nullable=False,
         index=True,
         comment="Type of knowledge entry"
+    )
+
+    entry_type: Mapped[EntryType] = mapped_column(
+        ENUM(EntryType, name="entry_type"),
+        nullable=False,
+        default=EntryType.DOCUMENT,
+        index=True,
+        comment="Presentation/format classification of the entry"
     )
     
     status: Mapped[KnowledgeStatus] = mapped_column(

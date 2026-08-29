@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.agents import (
     Agent, AgentTask, AgentMetrics,
     AgentType, AgentStatus
@@ -98,7 +98,7 @@ class AgentLifecycleManager:
             # Merge with default config
             merged_config = {**self.default_agent_config, **config}
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Create agent
                 agent = Agent(
                     name=name,
@@ -144,7 +144,7 @@ class AgentLifecycleManager:
             AgentLifecycleError: If activation fails
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.id == uuid.UUID(agent_id),
@@ -195,7 +195,7 @@ class AgentLifecycleManager:
             AgentNotFoundError: If agent not found
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.id == uuid.UUID(agent_id),
@@ -271,7 +271,7 @@ class AgentLifecycleManager:
             AgentConfigurationError: If config is invalid
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.id == uuid.UUID(agent_id),
@@ -325,7 +325,7 @@ class AgentLifecycleManager:
             AgentNotFoundError: If agent not found
         """
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.id == uuid.UUID(agent_id),
@@ -402,7 +402,7 @@ class AgentLifecycleManager:
         Returns:
             List[Agent]: List of agents
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             query = select(Agent).where(Agent.deleted_at.is_(None))
             
             if status:
@@ -432,7 +432,7 @@ class AgentLifecycleManager:
         cutoff_date = datetime.utcnow() - timedelta(days=max_age_days)
         
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.status == AgentStatus.DEACTIVATED,
@@ -491,7 +491,7 @@ class AgentLifecycleManager:
     async def _health_check_all_agents(self) -> None:
         """Perform health check on all active agents."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.status == AgentStatus.ACTIVE,
@@ -528,7 +528,7 @@ class AgentLifecycleManager:
         try:
             cutoff_time = datetime.utcnow() - timedelta(hours=1)
             
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.status == AgentStatus.ACTIVE,

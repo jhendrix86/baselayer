@@ -16,7 +16,7 @@ from sqlalchemy.sql.expression import cast
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.codex import (
     KnowledgeEntry, KnowledgeTag, SearchIndex,
     KnowledgeStatus, EntryType
@@ -107,7 +107,7 @@ class SearchEngine:
         include_highlights: bool
     ) -> List[Dict[str, Any]]:
         """Perform full-text search using PostgreSQL tsvector."""
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Build base query with full-text search
             search_query = f"""
                 SELECT 
@@ -227,7 +227,7 @@ class SearchEngine:
             query_embedding = await self._generate_query_embedding(query)
             
             # Search for similar entries
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get entries with embeddings
                 base_query = select(KnowledgeEntry).where(
                     KnowledgeEntry.deleted_at.is_(None),
@@ -453,7 +453,7 @@ class SearchEngine:
         Returns:
             List[str]: Search suggestions
         """
-        async with get_db_session() as session:
+        async with db_session_context() as session:
             # Search for titles that start with the query
             result = await session.execute(
                 select(KnowledgeEntry.title).where(

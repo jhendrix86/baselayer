@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.output_engine import (
     OutputTemplate, GeneratedOutput, DeliveryLog,
     TemplateType, OutputStatus, DeliveryStatus
@@ -147,7 +147,7 @@ class OutputTracker:
             return cached_result
         
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 query = select(GeneratedOutput).where(GeneratedOutput.deleted_at.is_(None))
                 
                 if template_id:
@@ -236,7 +236,7 @@ class OutputTracker:
             return cached_result
         
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get output statistics
                 query = select(GeneratedOutput).where(GeneratedOutput.deleted_at.is_(None))
                 
@@ -342,7 +342,7 @@ class OutputTracker:
             return cached_result
         
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get delivery statistics
                 query = select(DeliveryLog).where(DeliveryLog.deleted_at.is_(None))
                 
@@ -444,7 +444,7 @@ class OutputTracker:
             return cached_result
         
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get user's outputs
                 output_query = select(GeneratedOutput).where(
                     GeneratedOutput.created_by == user_id,
@@ -535,7 +535,7 @@ class OutputTracker:
         """
         try:
             # Get current statistics
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Output counts
                 result = await session.execute(
                     select(func.count(GeneratedOutput.id)).where(GeneratedOutput.deleted_at.is_(None))
@@ -594,7 +594,7 @@ class OutputTracker:
     async def _track_template_usage(self, template_id: uuid.UUID) -> None:
         """Track template usage."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(OutputTemplate).where(
                         OutputTemplate.id == template_id,
@@ -630,7 +630,7 @@ class OutputTracker:
     async def _update_tracking_metrics(self) -> None:
         """Update tracking metrics from database."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get current counts
                 result = await session.execute(
                     select(func.count(GeneratedOutput.id)).where(GeneratedOutput.deleted_at.is_(None))

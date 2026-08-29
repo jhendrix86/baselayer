@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.governance import (
     GovernanceRule, ComplianceReport,
     RuleType, ComplianceStatus
@@ -497,7 +497,7 @@ class ComplianceMonitor:
     ) -> List[GovernanceRule]:
         """Get applicable compliance rules."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 query = select(GovernanceRule).where(
                     GovernanceRule.enabled == True,
                     GovernanceRule.deleted_at.is_(None)

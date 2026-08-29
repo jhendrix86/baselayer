@@ -14,7 +14,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from structlog import get_logger
 
-from ..core.database import get_db_session
+from ..core.database import db_session_context
 from ..models.agents import (
     Agent, AgentTask,
     AgentType, AgentStatus, TaskStatus
@@ -371,7 +371,7 @@ class AgentScaler:
     async def _get_agent_count_by_type(self, agent_type: AgentType) -> int:
         """Get current count of agents by type."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(func.count(Agent.id)).where(
                         Agent.agent_type == agent_type,
@@ -392,7 +392,7 @@ class AgentScaler:
     async def _get_type_metrics(self, agent_type: AgentType) -> Dict[str, Any]:
         """Get metrics for a specific agent type."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 # Get agent count and capacity
                 result = await session.execute(
                     select(
@@ -482,7 +482,7 @@ class AgentScaler:
     async def _get_agents_for_removal(self, agent_type: AgentType, count: int) -> List[Agent]:
         """Get agents suitable for removal."""
         try:
-            async with get_db_session() as session:
+            async with db_session_context() as session:
                 result = await session.execute(
                     select(Agent).where(
                         Agent.agent_type == agent_type,
