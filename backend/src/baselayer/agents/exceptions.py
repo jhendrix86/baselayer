@@ -117,16 +117,18 @@ class AgentPerformanceError(AgentError):
 
 class AgentConfigurationError(AgentError):
     """Raised when agent configuration is invalid."""
-    
+
     def __init__(
         self,
         message: str,
         config_field: Optional[str] = None,
         config_value: Optional[Any] = None,
+        validation_errors: Optional[list] = None,
         **kwargs
     ):
         self.config_field = config_field
         self.config_value = config_value
+        self.validation_errors = validation_errors or []
         super().__init__(message, **kwargs)
 
 

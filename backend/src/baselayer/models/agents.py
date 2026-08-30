@@ -30,12 +30,14 @@ class AgentType(str, Enum):
 
 
 class AgentStatus(str, Enum):
-    """Agent status."""
-    IDLE = "idle"
-    BUSY = "busy"
-    OFFLINE = "offline"
-    ERROR = "error"
-    MAINTENANCE = "maintenance"
+    """Agent lifecycle/health status, as used by the agents engine layer
+    (lifecycle.py/scaler.py/coordinator.py/communicator.py/orchestrator.py/
+    monitor.py/tasks.py)."""
+    CREATED = "created"
+    ACTIVE = "active"
+    DEACTIVATED = "deactivated"
+    STALE = "stale"
+    UNHEALTHY = "unhealthy"
 
 
 class TaskStatus(str, Enum):
@@ -89,7 +91,7 @@ class Agent(BaseModel):
     status: Mapped[AgentStatus] = mapped_column(
         ENUM(AgentStatus, name="agent_status"),
         nullable=False,
-        default=AgentStatus.OFFLINE,
+        default=AgentStatus.CREATED,
         index=True,
         comment="Current agent status"
     )
@@ -119,16 +121,16 @@ class Agent(BaseModel):
     
     # Performance settings
     max_concurrent_tasks: Mapped[int] = mapped_column(
-        String(3),
+        Integer,
         nullable=False,
-        default="5",
+        default=5,
         comment="Maximum number of concurrent tasks"
     )
-    
+
     timeout_seconds: Mapped[int] = mapped_column(
-        String(10),
+        Integer,
         nullable=False,
-        default="300",
+        default=300,
         comment="Default timeout for tasks in seconds"
     )
     
@@ -152,27 +154,56 @@ class Agent(BaseModel):
         index=True,
         comment="Last heartbeat timestamp"
     )
-    
+
+    last_activity: Mapped[datetime | None] = mapped_column(
+        nullable=True,
+        comment="Timestamp of the agent's last real work (task assignment/completion/message), distinct from last_heartbeat's liveness ping"
+    )
+
+    activated_at: Mapped[datetime | None] = mapped_column(
+        nullable=True,
+        comment="When the agent was last activated"
+    )
+
+    deactivated_at: Mapped[datetime | None] = mapped_column(
+        nullable=True,
+        comment="When the agent was last deactivated"
+    )
+
     health_check_interval: Mapped[int] = mapped_column(
-        String(5),
+        Integer,
         nullable=False,
-        default="30",
+        default=30,
         comment="Health check interval in seconds"
     )
-    
+
     # Load balancing
-    current_load: Mapped[int] = mapped_column(
-        String(3),
+    current_tasks: Mapped[int] = mapped_column(
+        Integer,
         nullable=False,
-        default="0",
+        default=0,
         comment="Current number of active tasks"
     )
-    
+
     total_capacity: Mapped[int] = mapped_column(
-        String(3),
+        Integer,
         nullable=False,
-        default="5",
+        default=5,
         comment="Total task capacity"
+    )
+
+    total_tasks_completed: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Lifetime count of successfully completed tasks"
+    )
+
+    total_tasks_failed: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Lifetime count of failed tasks"
     )
     
     # Governance and compliance
@@ -216,7 +247,7 @@ class Agent(BaseModel):
     __table_args__ = (
         UniqueConstraint("name", "deleted_at", name="uq_agent_name_deleted"),
         Index("idx_agent_type_status", "agent_type", "status"),
-        Index("idx_agent_load", "current_load"),
+        Index("idx_agent_load", "current_tasks"),
         Index("idx_agent_heartbeat", "last_heartbeat"),
         {"comment": "AI agents for multi-agent orchestration"}
     )
@@ -227,85 +258,29 @@ class Agent(BaseModel):
     
     @property
     def is_online(self) -> bool:
-        """Check if agent is online."""
-        return self.status != AgentStatus.OFFLINE
-    
+        """Check if agent is online (created and not yet deactivated)."""
+        return self.status not in (AgentStatus.DEACTIVATED, AgentStatus.UNHEALTHY)
+
     @property
     def is_available(self) -> bool:
         """Check if agent is available for tasks."""
-        return self.status == AgentStatus.IDLE and int(self.current_load) < int(self.max_concurrent_tasks)
-    
+        return self.status == AgentStatus.ACTIVE and self.current_tasks < self.max_concurrent_tasks
+
     @property
     def load_percentage(self) -> float:
         """Calculate current load as percentage."""
-        if int(self.total_capacity) == 0:
+        if self.total_capacity == 0:
             return 0.0
-        return (int(self.current_load) / int(self.total_capacity)) * 100
-    
+        return (self.current_tasks / self.total_capacity) * 100
+
     @property
     def can_accept_task(self) -> bool:
         """Check if agent can accept a new task."""
         return (
-            self.is_online and
-            self.status == AgentStatus.IDLE and
-            int(self.current_load) < int(self.max_concurrent_tasks)
+            self.status == AgentStatus.ACTIVE and
+            self.current_tasks < self.max_concurrent_tasks
         )
-    
-    def go_online(self) -> None:
-        """Bring the agent online."""
-        self.status = AgentStatus.IDLE
-        self.last_heartbeat = datetime.utcnow()
-        self.increment_version()
-    
-    def go_offline(self) -> None:
-        """Take the agent offline."""
-        self.status = AgentStatus.OFFLINE
-        self.current_load = "0"
-        self.increment_version()
-    
-    def start_task(self) -> bool:
-        """
-        Start a task on the agent.
-        
-        Returns:
-            bool: True if task was started successfully
-        """
-        if not self.can_accept_task:
-            return False
-        
-        self.status = AgentStatus.BUSY
-        self.current_load = str(int(self.current_load) + 1)
-        self.last_heartbeat = datetime.utcnow()
-        return True
-    
-    def complete_task(self) -> None:
-        """Complete a task on the agent."""
-        current_load = int(self.current_load)
-        if current_load > 0:
-            self.current_load = str(current_load - 1)
-        
-        if int(self.current_load) == 0:
-            self.status = AgentStatus.IDLE
-        
-        self.last_heartbeat = datetime.utcnow()
-    
-    def fail_task(self) -> None:
-        """Handle task failure."""
-        current_load = int(self.current_load)
-        if current_load > 0:
-            self.current_load = str(current_load - 1)
-        
-        self.status = AgentStatus.ERROR
-        self.last_heartbeat = datetime.utcnow()
-    
-    def update_heartbeat(self) -> None:
-        """Update the agent heartbeat."""
-        self.last_heartbeat = datetime.utcnow()
-        
-        # Reset error status if heartbeat is successful
-        if self.status == AgentStatus.ERROR:
-            self.status = AgentStatus.IDLE if int(self.current_load) == 0 else AgentStatus.BUSY
-    
+
     def add_capability(
         self,
         name: str,
