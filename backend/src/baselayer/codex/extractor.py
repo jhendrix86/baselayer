@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup
 import aiofiles
 import aiohttp
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from structlog import get_logger
 
 from ..core.database import db_session_context
@@ -262,7 +263,7 @@ class KnowledgeExtractor:
                     access_level="public",
                     status=KnowledgeStatus.DRAFT,
                     version="1.0.0",
-                    metadata={
+                    metadata_={
                         "source": url,
                         "source_type": "web_page",
                         "extraction_date": datetime.utcnow().isoformat(),
@@ -282,10 +283,13 @@ class KnowledgeExtractor:
                 # Add tags
                 if tags:
                     await self._add_tags_to_entry(db_session, entry.id, tags)
-                
+
                 # Add extracted tags
                 if extracted_data.get("tags"):
                     await self._add_tags_to_entry(db_session, entry.id, extracted_data["tags"])
+
+                if tags or extracted_data.get("tags"):
+                    await db_session.refresh(entry)
                 
                 logger.info(
                     "Knowledge extracted from URL",
@@ -340,7 +344,7 @@ class KnowledgeExtractor:
                     access_level="public",
                     status=KnowledgeStatus.DRAFT,
                     version="1.0.0",
-                    metadata={
+                    metadata_={
                         "source": file_path,
                         "source_type": "document",
                         "file_type": file_type,
@@ -359,10 +363,13 @@ class KnowledgeExtractor:
                 # Add tags
                 if tags:
                     await self._add_tags_to_entry(db_session, entry.id, tags)
-                
+
                 # Add extracted tags
                 if extracted_data.get("tags"):
                     await self._add_tags_to_entry(db_session, entry.id, extracted_data["tags"])
+
+                if tags or extracted_data.get("tags"):
+                    await db_session.refresh(entry)
                 
                 logger.info(
                     "Knowledge extracted from document",
@@ -406,7 +413,7 @@ class KnowledgeExtractor:
                     access_level="public",
                     status=KnowledgeStatus.DRAFT,
                     version="1.0.0",
-                    metadata={
+                    metadata_={
                         "source": source,
                         "source_type": "text",
                         "extraction_date": datetime.utcnow().isoformat(),
@@ -424,10 +431,13 @@ class KnowledgeExtractor:
                 # Add tags
                 if tags:
                     await self._add_tags_to_entry(db_session, entry.id, tags)
-                
+
                 # Add extracted tags
                 if extracted_data.get("tags"):
                     await self._add_tags_to_entry(db_session, entry.id, extracted_data["tags"])
+
+                if tags or extracted_data.get("tags"):
+                    await db_session.refresh(entry)
                 
                 logger.info(
                     "Knowledge extracted from text",
@@ -744,9 +754,22 @@ class KnowledgeExtractor:
         entry_id: uuid.UUID,
         tags: List[str]
     ) -> None:
-        """Add tags to a knowledge entry."""
+        """Add tags to a knowledge entry, merging with any existing tags.
+
+        entry.tags is a plain text[] column (no association table exists),
+        so this reloads the entry and writes real tag-name strings to it -
+        the KnowledgeTag rows are a separate catalog (name/color/usage_count),
+        not the entry's own tag storage.
+        """
+        result = await session.execute(
+            select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id)
+        )
+        entry = result.scalar_one_or_none()
+        if not entry:
+            return
+
+        updated_tags = set(entry.tags or [])
         for tag_name in tags:
-            # Get or create tag
             result = await session.execute(
                 select(KnowledgeTag).where(
                     KnowledgeTag.name == tag_name,
@@ -754,7 +777,7 @@ class KnowledgeExtractor:
                 )
             )
             tag = result.scalar_one_or_none()
-            
+
             if not tag:
                 tag = KnowledgeTag(
                     name=tag_name,
@@ -763,10 +786,12 @@ class KnowledgeExtractor:
                 )
                 session.add(tag)
                 await session.flush()
-            
-            # Create entry-tag relationship
-            # In real implementation, this would be a separate association table
-            pass
+
+            updated_tags.add(tag_name)
+
+        entry.tags = list(updated_tags)
+        session.add(entry)
+        await session.commit()
     
     def _generate_tag_color(self, tag_name: str) -> str:
         """Generate a color for a tag based on its name."""

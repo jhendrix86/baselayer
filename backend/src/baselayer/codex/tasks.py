@@ -92,7 +92,7 @@ async def process_pending_indexing(ctx: Dict[str, Any]) -> Dict[str, Any]:
                     KnowledgeEntry.deleted_at.is_(None),
                     KnowledgeEntry.status == KnowledgeStatus.PUBLISHED
                 ).outerjoin(
-                    SearchIndex, KnowledgeEntry.id == SearchIndex.knowledge_entry_id
+                    SearchIndex, KnowledgeEntry.id == SearchIndex.entry_id
                 ).where(
                     SearchIndex.id.is_(None)
                 ).limit(50)

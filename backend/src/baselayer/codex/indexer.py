@@ -8,17 +8,18 @@ for the Codex/Memory subsystem.
 import asyncio
 import hashlib
 import re
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update
+from sqlalchemy import update, func
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from structlog import get_logger
 
 from ..core.database import db_session_context
-from ..models.codex import KnowledgeEntry, SearchIndex
+from ..models.codex import KnowledgeEntry, SearchIndex, SearchIndexType
 from .exceptions import IndexError, AIModelError
 
 logger = get_logger(__name__)
@@ -78,47 +79,42 @@ class KnowledgeIndexer:
     
     async def index_entry(self, entry: KnowledgeEntry) -> None:
         """
-        Index a knowledge entry for search.
-        
+        Index a knowledge entry for search, synchronously.
+
         Args:
             entry: Knowledge entry to index
+
+        Note: this used to only enqueue onto self.indexing_queue for the
+        background worker loop to drain - but nothing in this deployment
+        ever calls start_indexing_worker() (no ARQ worker process is
+        deployed; codex/tasks.py's initialize_codex() is never invoked),
+        so every entry silently went unindexed forever. Does the real work
+        directly instead - these are fast, single-row writes, fine to run
+        inline on the request path.
         """
-        indexing_task = {
-            "type": "index_entry",
-            "entry_id": str(entry.id),
-            "entry": entry
-        }
-        
-        await self.indexing_queue.put(indexing_task)
-    
+        await self._create_full_index(entry)
+
     async def update_index(self, entry: KnowledgeEntry) -> None:
         """
-        Update search index for a knowledge entry.
-        
+        Update search index for a knowledge entry, synchronously.
+
         Args:
             entry: Knowledge entry to update
+
+        See index_entry()'s note - same reasoning applies here.
         """
-        indexing_task = {
-            "type": "update_index",
-            "entry_id": str(entry.id),
-            "entry": entry
-        }
-        
-        await self.indexing_queue.put(indexing_task)
-    
+        await self._update_full_index(entry)
+
     async def remove_from_index(self, entry_id: str) -> None:
         """
-        Remove entry from search index.
-        
+        Remove entry from search index, synchronously.
+
         Args:
             entry_id: Entry ID to remove
+
+        See index_entry()'s note - same reasoning applies here.
         """
-        indexing_task = {
-            "type": "remove_index",
-            "entry_id": entry_id
-        }
-        
-        await self.indexing_queue.put(indexing_task)
+        await self._remove_full_index(entry_id)
     
     async def _process_indexing_task(self, task: Dict[str, Any]) -> None:
         """
@@ -175,18 +171,37 @@ class KnowledgeIndexer:
                 # Generate embedding
                 embedding = await self._generate_embedding(content)
                 
-                # Create search index record
+                # Create search index record. embedding lives on
+                # KnowledgeEntry itself (not SearchIndex, which has no such
+                # column) - update the entry's own row for it.
+                now = datetime.utcnow()
                 search_index = SearchIndex(
-                    knowledge_entry_id=entry.id,
-                    content_vector=search_vector,
-                    embedding=embedding,
-                    metadata=metadata,
-                    indexed_at=datetime.utcnow()
+                    entry_id=entry.id,
+                    index_type=SearchIndexType.HYBRID,
+                    indexed_content=search_vector,
+                    token_count=str(len(search_vector.split())),
+                    metadata_=metadata,
+                    indexed_at=now,
+                    last_updated_at=now
                 )
-                
                 session.add(search_index)
+
+                # entry.search_vector is what _full_text_search's real query
+                # actually filters on (`search_vector @@ plainto_tsquery(...)`)
+                # - a plain string assignment can't populate a real tsvector,
+                # needs to_tsvector() computed in the UPDATE itself.
+                entry_updates = {"search_vector": func.to_tsvector("english", content)}
+                if embedding:
+                    entry_updates["embedding"] = embedding
+
+                await session.execute(
+                    update(KnowledgeEntry)
+                    .where(KnowledgeEntry.id == entry.id)
+                    .values(**entry_updates)
+                )
+
                 await session.commit()
-                
+
                 logger.info(
                     "Search index created",
                     entry_id=str(entry.id),
@@ -210,29 +225,39 @@ class KnowledgeIndexer:
                 # Get existing index
                 result = await session.execute(
                     select(SearchIndex).where(
-                        SearchIndex.knowledge_entry_id == entry.id
+                        SearchIndex.entry_id == entry.id
                     )
                 )
                 search_index = result.scalar_one_or_none()
-                
+
                 if search_index:
                     # Extract updated content and metadata
                     content = self._extract_content(entry)
                     metadata = self._extract_metadata(entry)
-                    
+
                     # Generate updated search vector and embedding
                     search_vector = self._generate_search_vector(content)
                     embedding = await self._generate_embedding(content)
-                    
+
                     # Update index
-                    search_index.content_vector = search_vector
-                    search_index.embedding = embedding
-                    search_index.metadata = metadata
-                    search_index.indexed_at = datetime.utcnow()
-                    
+                    search_index.indexed_content = search_vector
+                    search_index.token_count = str(len(search_vector.split()))
+                    search_index.metadata_ = metadata
+                    search_index.last_updated_at = datetime.utcnow()
                     session.add(search_index)
+
+                    entry_updates = {"search_vector": func.to_tsvector("english", content)}
+                    if embedding:
+                        entry_updates["embedding"] = embedding
+
+                    await session.execute(
+                        update(KnowledgeEntry)
+                        .where(KnowledgeEntry.id == entry.id)
+                        .values(**entry_updates)
+                    )
+
                     await session.commit()
-                    
+
                     logger.info(
                         "Search index updated",
                         entry_id=str(entry.id)
@@ -256,7 +281,7 @@ class KnowledgeIndexer:
             try:
                 result = await session.execute(
                     select(SearchIndex).where(
-                        SearchIndex.knowledge_entry_id == uuid.UUID(entry_id)
+                        SearchIndex.entry_id == uuid.UUID(entry_id)
                     )
                 )
                 search_index = result.scalar_one_or_none()
@@ -300,17 +325,17 @@ class KnowledgeIndexer:
             content_parts.append(entry.author)
         
         # Add metadata fields
-        if entry.metadata:
+        if entry.metadata_:
             metadata_text = []
-            
-            if entry.metadata.get("description"):
-                metadata_text.append(entry.metadata["description"])
-            
-            if entry.metadata.get("keywords"):
-                metadata_text.extend(entry.metadata["keywords"])
-            
-            if entry.metadata.get("tags"):
-                metadata_text.extend(entry.metadata["tags"])
+
+            if entry.metadata_.get("description"):
+                metadata_text.append(entry.metadata_["description"])
+
+            if entry.metadata_.get("keywords"):
+                metadata_text.extend(entry.metadata_["keywords"])
+
+            if entry.metadata_.get("tags"):
+                metadata_text.extend(entry.metadata_["tags"])
             
             content_parts.extend(metadata_text)
         
@@ -348,9 +373,9 @@ class KnowledgeIndexer:
         }
         
         # Add custom metadata
-        if entry.metadata:
+        if entry.metadata_:
             metadata.update({
-                f"custom_{k}": v for k, v in entry.metadata.items()
+                f"custom_{k}": v for k, v in entry.metadata_.items()
                 if k not in ["description", "keywords", "tags"]
             })
         
@@ -526,17 +551,18 @@ class KnowledgeIndexer:
             )
             total_indexed = result.scalar() or 0
             
-            # Get entries with embeddings
+            # Get entries with embeddings - embedding lives on KnowledgeEntry,
+            # not SearchIndex
             result = await session.execute(
-                select(func.count(SearchIndex.id)).where(
-                    SearchIndex.embedding.is_not(None)
+                select(func.count(KnowledgeEntry.id)).where(
+                    KnowledgeEntry.embedding.is_not(None)
                 )
             )
             with_embeddings = result.scalar() or 0
-            
+
             # Get average content length
             result = await session.execute(
-                select(func.avg(func.length(SearchIndex.content_vector)))
+                select(func.avg(func.length(SearchIndex.indexed_content)))
             )
             avg_content_length = result.scalar() or 0
             

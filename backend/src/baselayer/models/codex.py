@@ -259,7 +259,16 @@ class KnowledgeEntry(BaseModel):
         index=True,
         comment="Timestamp when entry was last accessed"
     )
-    
+
+    # Override BaseModel.metadata_ (plain Text) with real JSONB - same
+    # pattern already used by income_engine's RevenueTransaction - the
+    # engine layer here writes/reads it as a real dict, not a JSON string.
+    metadata_: Mapped[Dict[str, Any] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Additional entry metadata"
+    )
+
     # Relationships
     created_by_user = relationship(
         "User",
@@ -673,7 +682,15 @@ class SearchIndex(BaseModel):
         nullable=True,
         comment="Timestamp when the entry was last searched"
     )
-    
+
+    # Override BaseModel.metadata_ (plain Text) with real JSONB - see
+    # KnowledgeEntry's identical override above for why.
+    metadata_: Mapped[Dict[str, Any] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Additional index metadata"
+    )
+
     # Constraints and indexes
     __table_args__ = (
         UniqueConstraint("entry_id", "index_type", name="uq_search_entry_type"),

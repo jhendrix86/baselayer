@@ -684,7 +684,7 @@ async def get_my_entries(
     
     entries = await engine.list_knowledge_entries(
         status=status,
-        author=str(current_user.id),
+        created_by=current_user.id,
         limit=limit,
         offset=offset
     )

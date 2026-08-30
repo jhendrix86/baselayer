@@ -110,7 +110,7 @@ class KnowledgeEngine:
                     access_level=access_level,
                     status=KnowledgeStatus.DRAFT,
                     version="1.0.0",
-                    metadata=metadata or {},
+                    metadata_=metadata or {},
                     author=author,
                     created_by=created_by
                 )
@@ -122,7 +122,8 @@ class KnowledgeEngine:
                 # Add tags
                 if tags:
                     await self._add_tags_to_entry(session, entry.id, tags)
-                
+                    await session.refresh(entry)
+
                 # Create search index
                 await self._create_search_index(entry)
                 
@@ -258,7 +259,7 @@ class KnowledgeEngine:
                 entry.status = KnowledgeStatus(updates["status"])
             
             if "metadata" in updates:
-                entry.metadata = updates["metadata"]
+                entry.metadata_ = updates["metadata"]
             
             if "author" in updates:
                 entry.author = updates["author"]
@@ -353,6 +354,7 @@ class KnowledgeEngine:
         language: Optional[str] = None,
         access_level: Optional[str] = None,
         author: Optional[str] = None,
+        created_by: Optional[uuid.UUID] = None,
         limit: int = 20,
         offset: int = 0,
         sort_by: str = "created_at",
@@ -360,7 +362,7 @@ class KnowledgeEngine:
     ) -> List[KnowledgeEntry]:
         """
         List knowledge entries with optional filtering.
-        
+
         Args:
             status: Filter by status
             entry_type: Filter by entry type
@@ -368,7 +370,8 @@ class KnowledgeEngine:
             category_id: Filter by category
             language: Filter by language
             access_level: Filter by access level
-            author: Filter by author
+            author: Filter by author display name (free-text ILIKE match)
+            created_by: Filter by the user who created the entry
             limit: Maximum number of results
             offset: Pagination offset
             sort_by: Sort field
@@ -401,7 +404,10 @@ class KnowledgeEngine:
             
             if author:
                 query = query.where(KnowledgeEntry.author.ilike(f"%{author}%"))
-            
+
+            if created_by:
+                query = query.where(KnowledgeEntry.created_by == created_by)
+
             # Apply sorting
             sort_column = getattr(KnowledgeEntry, sort_by, KnowledgeEntry.created_at)
             if sort_order.lower() == "desc":
@@ -495,7 +501,7 @@ class KnowledgeEngine:
             "updated_by": str(entry.updated_by) if entry.updated_by else None,
             "title": entry.title,
             "content_length": len(entry.content),
-            "metadata": entry.metadata
+            "metadata": entry.metadata_
         }]
     
     async def get_entry_statistics(
@@ -661,37 +667,59 @@ class KnowledgeEngine:
             
             return None
     
+    async def _get_or_create_tag(
+        self,
+        session: AsyncSession,
+        tag_name: str
+    ) -> KnowledgeTag:
+        """Get or create a KnowledgeTag catalog entry for a tag name."""
+        result = await session.execute(
+            select(KnowledgeTag).where(
+                KnowledgeTag.name == tag_name,
+                KnowledgeTag.deleted_at.is_(None)
+            )
+        )
+        tag = result.scalar_one_or_none()
+
+        if not tag:
+            tag = KnowledgeTag(
+                name=tag_name,
+                description=f"Tag: {tag_name}",
+                color=self._generate_tag_color(tag_name)
+            )
+            session.add(tag)
+            await session.flush()
+
+        return tag
+
     async def _add_tags_to_entry(
         self,
         session: AsyncSession,
         entry_id: uuid.UUID,
         tags: List[str]
     ) -> None:
-        """Add tags to a knowledge entry."""
+        """Add tags to a knowledge entry, merging with any existing tags.
+
+        entry.tags is a plain text[] column (no association table exists),
+        so this reloads the entry and writes real tag-name strings to it -
+        the KnowledgeTag rows are a separate catalog (name/color/usage_count),
+        not the entry's own tag storage.
+        """
+        result = await session.execute(
+            select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id)
+        )
+        entry = result.scalar_one_or_none()
+        if not entry:
+            return
+
+        updated_tags = set(entry.tags or [])
         for tag_name in tags:
-            # Get or create tag
-            result = await session.execute(
-                select(KnowledgeTag).where(
-                    KnowledgeTag.name == tag_name,
-                    KnowledgeTag.deleted_at.is_(None)
-                )
-            )
-            tag = result.scalar_one_or_none()
-            
-            if not tag:
-                tag = KnowledgeTag(
-                    name=tag_name,
-                    description=f"Tag: {tag_name}",
-                    color=self._generate_tag_color(tag_name)
-                )
-                session.add(tag)
-                await session.flush()
-            
-            # Create entry-tag relationship
-            # In real implementation, this would be a separate association table
-            if not hasattr(entry, 'tags'):
-                entry.tags = []
-            entry.tags.append(tag)
+            await self._get_or_create_tag(session, tag_name)
+            updated_tags.add(tag_name)
+
+        entry.tags = list(updated_tags)
+        session.add(entry)
+        await session.commit()
     
     async def _update_entry_tags(
         self,
@@ -699,12 +727,20 @@ class KnowledgeEngine:
         entry_id: uuid.UUID,
         tags: List[str]
     ) -> None:
-        """Update tags for a knowledge entry."""
-        # Remove existing tags
-        # In real implementation, this would clear the association table
-        
-        # Add new tags
-        await self._add_tags_to_entry(session, entry_id, tags)
+        """Replace all tags on a knowledge entry with the given list."""
+        result = await session.execute(
+            select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id)
+        )
+        entry = result.scalar_one_or_none()
+        if not entry:
+            return
+
+        for tag_name in tags:
+            await self._get_or_create_tag(session, tag_name)
+
+        entry.tags = list(tags)
+        session.add(entry)
+        await session.commit()
     
     async def _create_search_index(self, entry: KnowledgeEntry) -> None:
         """Create search index for entry."""
@@ -757,17 +793,9 @@ class KnowledgeEngine:
         entry: KnowledgeEntry
     ) -> None:
         """Load related data for entry."""
-        # Load tags
-        result = await session.execute(
-            select(KnowledgeTag).join(
-                # In real implementation, this would join through association table
-                KnowledgeEntry.tags
-            ).where(
-                KnowledgeTag.deleted_at.is_(None)
-            )
-        )
-        entry.tags = result.scalars().all()
-        
+        # entry.tags is already populated by the initial SELECT (a plain
+        # text[] column, not a relationship) - nothing to load here.
+
         # Load category
         if entry.category_id:
             result = await session.execute(

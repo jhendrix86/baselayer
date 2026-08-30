@@ -95,7 +95,7 @@ class SearchEngine:
                 search_type=search_type,
                 error=str(e)
             )
-            raise SearchError(f"Search failed: {str(e)}", search_query=query) from e
+            raise SearchError(f"Search failed: {str(e)}", query=query) from e
     
     async def _full_text_search(
         self,
@@ -150,16 +150,13 @@ class SearchEngine:
                     params["author"] = f"%{filters['author']}%"
                 
                 if filters.get("tags"):
-                    # Join with tags
-                    search_query += """
-                        AND ke.id IN (
-                            SELECT ket.knowledge_entry_id
-                            FROM knowledge_entry_tags ket
-                            JOIN knowledge_tags kt ON kt.id = ket.knowledge_tag_id
-                            WHERE kt.name IN :tags
-                        )
-                    """
-                    params["tags"] = tuple(filters["tags"])
+                    # tags is a plain text[] column on knowledge_entries, not a
+                    # join table - no knowledge_entry_tags association exists.
+                    # CAST(...), not the :tags::text[] shorthand - SQLAlchemy's
+                    # text() bind-param parser treats a :: right after a named
+                    # param as ambiguous and errors at the DB with a syntax error.
+                    where_conditions.append("ke.tags && CAST(:tags AS varchar[])")
+                    params["tags"] = list(filters["tags"])
                 
                 if where_conditions:
                     search_query += " AND " + " AND ".join(where_conditions)
@@ -189,11 +186,15 @@ class SearchEngine:
                     "id": str(row.id),
                     "title": row.title,
                     "content": row.content if include_highlights else None,
-                    "entry_type": row.entry_type.value,
-                    "knowledge_type": row.knowledge_type.value,
+                    # raw text() SQL returns the Postgres enum's stored
+                    # member NAME ("DOCUMENT"), not a Python Enum instance -
+                    # .value lowercases it to match the rest of the API's
+                    # output (and the ORM-based _semantic_search path)
+                    "entry_type": row.entry_type.lower(),
+                    "knowledge_type": row.knowledge_type.lower(),
                     "language": row.language,
                     "access_level": row.access_level,
-                    "status": row.status.value,
+                    "status": row.status.lower(),
                     "author": row.author,
                     "created_at": row.created_at.isoformat(),
                     "updated_at": row.updated_at.isoformat() if row.updated_at else None,
