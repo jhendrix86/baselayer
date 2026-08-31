@@ -15,7 +15,7 @@ from structlog import get_logger
 
 from ...core.database import get_db_session
 from ...models.governance import (
-    GovernanceRule, RuleType, RuleStatus
+    GovernanceRule, RuleType, RuleStatus, GovernanceCategory, GovernancePriority
 )
 from ...models.user import User
 from ...core.auth import get_current_user
@@ -246,9 +246,10 @@ async def create_policy(
             name=policy_data["name"],
             description=policy_data["description"],
             rule_type=RuleType(policy_data["rule_type"]),
+            category=GovernanceCategory(policy_data["category"]) if "category" in policy_data else None,
             conditions=policy_data["conditions"],
             actions=policy_data["actions"],
-            priority=policy_data.get("priority", 50),
+            priority=GovernancePriority(policy_data["priority"]) if "priority" in policy_data else None,
             enabled=policy_data.get("enabled", True),
             tags=policy_data.get("tags"),
             metadata=policy_data.get("metadata"),
@@ -291,7 +292,7 @@ async def update_policy(
     
     try:
         policy = await engine.update_rule(
-            policy_id=policy_id,
+            rule_id=policy_id,
             updates=policy_data,
             updated_by=current_user.id
         )

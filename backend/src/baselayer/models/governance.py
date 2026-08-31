@@ -5,7 +5,7 @@ Governance rules, audit logging, and compliance tracking
 for the Governance/Doctrine subsystem.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import uuid
 from enum import Enum
@@ -65,6 +65,7 @@ class AuditLevel(str, Enum):
 class ComplianceStatus(str, Enum):
     """Compliance status."""
     COMPLIANT = "compliant"
+    PARTIALLY_COMPLIANT = "partially_compliant"
     NON_COMPLIANT = "non_compliant"
     PENDING = "pending"
     EXEMPT = "exempt"
@@ -229,7 +230,24 @@ class GovernanceRule(BaseModel):
         index=True,
         comment="Timestamp when next review is due"
     )
-    
+
+    # Tags (engine layer filters/creates by tag; no association table needed)
+    tags: Mapped[list[str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+        comment="Rule tags"
+    )
+
+    # Overrides BaseModel's plain-Text metadata_ with real JSONB (same pattern
+    # as income_engine.RevenueTransaction / codex.KnowledgeEntry) since the
+    # engine layer reads/writes this as a dict.
+    metadata_: Mapped[Dict[str, Any] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Additional rule metadata"
+    )
+
     # Relationships
     created_by_user = relationship(
         "User",
@@ -316,7 +334,7 @@ class GovernanceRule(BaseModel):
         """
         self.review_frequency_days = str(frequency_days)
         self.last_reviewed_at = datetime.utcnow()
-        self.next_review_at = datetime.utcnow() + datetime.timedelta(days=frequency_days)
+        self.next_review_at = datetime.utcnow() + timedelta(days=frequency_days)
     
     def evaluate_condition(self, context: Dict[str, Any]) -> bool:
         """

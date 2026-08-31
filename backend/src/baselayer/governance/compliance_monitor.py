@@ -150,9 +150,9 @@ class ComplianceMonitor:
                 violations.append({
                     "rule_id": str(rule.id),
                     "rule_name": rule.name,
-                    "severity": rule.metadata.get("severity", "medium"),
+                    "severity": (rule.metadata_ or {}).get("severity", "medium"),
                     "description": f"Rule violation: {rule.name}",
-                    "remediation": rule.metadata.get("remediation", "Contact administrator"),
+                    "remediation": (rule.metadata_ or {}).get("remediation", "Contact administrator"),
                     "timestamp": datetime.utcnow().isoformat()
                 })
             
@@ -448,7 +448,9 @@ class ComplianceMonitor:
     async def _evaluate_rule_conditions(self, rule: GovernanceRule, context: Dict[str, Any]) -> bool:
         """Evaluate rule conditions for compliance."""
         try:
-            conditions = rule.conditions
+            # "applies_to" is applicability scoping (handled by the caller's
+            # rule selection), not a condition to match against context.
+            conditions = {k: v for k, v in (rule.conditions or {}).items() if k != "applies_to"}
             
             # Simple condition evaluation
             for condition_key, condition_value in conditions.items():

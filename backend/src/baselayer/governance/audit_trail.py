@@ -138,20 +138,27 @@ class AuditTrail:
             # Determine category if not provided
             if not category:
                 category = self._determine_event_category(event_type)
-            
-            # Create audit log entry
+
+            # Create audit log entry. AuditLog has no severity/tags/details
+            # columns - fold them into metadata_ (JSONB) alongside the real
+            # columns (event_id/action/timestamp are required, event_category
+            # is the real name for "category").
             audit_log = AuditLog(
+                event_id=str(uuid.uuid4()),
                 event_type=event_type,
+                event_category=category,
+                action=event_type,
                 resource_id=resource_id,
                 resource_type=resource_type,
-                details=details or {},
                 user_id=user_id,
                 ip_address=ip_address,
                 user_agent=user_agent,
-                severity=severity,
-                category=category,
-                tags=tags or [],
-                created_at=datetime.utcnow()
+                timestamp=datetime.utcnow(),
+                metadata_={
+                    **(details or {}),
+                    "severity": severity,
+                    "tags": tags or [],
+                }
             )
             
             # Add to processing queue

@@ -18,7 +18,7 @@ from structlog import get_logger
 from ..core.database import db_session_context
 from ..models.governance import (
     GovernanceRule, AuditLog, ComplianceReport,
-    RuleType, RuleStatus, ComplianceStatus
+    RuleType, RuleStatus, ComplianceStatus, GovernanceCategory, GovernancePriority
 )
 from ..models.user import User
 from .policy_manager import PolicyManager
@@ -35,6 +35,13 @@ from .exceptions import (
 )
 
 logger = get_logger(__name__)
+
+_PRIORITY_WEIGHT = {
+    GovernancePriority.LOW: 0,
+    GovernancePriority.MEDIUM: 1,
+    GovernancePriority.HIGH: 2,
+    GovernancePriority.CRITICAL: 3,
+}
 
 
 class GovernanceEngine:
@@ -116,7 +123,8 @@ class GovernanceEngine:
         rule_type: RuleType,
         conditions: Dict[str, Any],
         actions: List[Dict[str, Any]],
-        priority: int = 50,
+        category: Optional[GovernanceCategory] = None,
+        priority: Optional[GovernancePriority] = None,
         enabled: bool = True,
         tags: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
@@ -124,40 +132,43 @@ class GovernanceEngine:
     ) -> GovernanceRule:
         """
         Create a new governance rule.
-        
+
         Args:
             name: Rule name
             description: Rule description
             rule_type: Type of rule
             conditions: Rule conditions
             actions: Rule actions
-            priority: Rule priority (0-100)
+            category: Rule category (defaults to OPERATIONAL)
+            priority: Rule priority (defaults to MEDIUM)
             enabled: Whether rule is enabled
             tags: Rule tags
             metadata: Additional metadata
             created_by: User who created the rule
-            
+
         Returns:
             GovernanceRule: Created rule
-            
+
         Raises:
             GovernanceError: If creation fails
         """
+        category = category or GovernanceCategory.OPERATIONAL
+        priority = priority or GovernancePriority.MEDIUM
         try:
             # Validate rule data
-            await self._validate_rule_data(rule_type, conditions, actions)
-            
+            await self._validate_rule_data(rule_type, category, conditions, actions)
+
             async with db_session_context() as session:
                 rule = GovernanceRule(
                     name=name,
                     description=description,
+                    category=category,
                     rule_type=rule_type,
                     conditions=conditions,
                     actions=actions,
                     priority=priority,
-                    enabled=enabled,
                     tags=tags or [],
-                    metadata=metadata or {},
+                    metadata_=metadata or {},
                     status=RuleStatus.ACTIVE if enabled else RuleStatus.DRAFT,
                     created_by=created_by
                 )
@@ -182,7 +193,13 @@ class GovernanceEngine:
                 )
                 
                 return rule
-                
+
+        except ValidationError:
+            # Let validation failures surface as themselves - the router
+            # maps ValidationError to 400, GovernanceError to 500. Wrapping
+            # this in GovernanceError silently turned every bad-input 400
+            # into a 500.
+            raise
         except Exception as e:
             raise GovernanceError(f"Failed to create governance rule: {str(e)}") from e
     
@@ -212,7 +229,7 @@ class GovernanceEngine:
             if not rule:
                 raise GovernanceError(f"Rule not found: {rule_id}")
             
-            if not rule.enabled:
+            if not rule.is_active:
                 return {"enforced": False, "reason": "Rule is disabled"}
             
             # Evaluate conditions
@@ -308,7 +325,7 @@ class GovernanceEngine:
                         violations.append({
                             "rule_id": str(rule.id),
                             "rule_name": rule.name,
-                            "severity": rule.metadata.get("severity", "medium"),
+                            "severity": (rule.metadata_ or {}).get("severity", "medium"),
                             "description": result.get("violation_description", "Rule violation"),
                             "remediation": result.get("remediation", "No remediation available")
                         })
@@ -459,10 +476,15 @@ class GovernanceEngine:
             
             if status:
                 query = query.where(GovernanceRule.status == status)
-            
+
             if enabled is not None:
-                query = query.where(GovernanceRule.enabled == enabled)
-            
+                # No standalone "enabled" column - status IS the enabled/
+                # disabled toggle (see GovernanceRule.is_active).
+                if enabled:
+                    query = query.where(GovernanceRule.status == RuleStatus.ACTIVE)
+                else:
+                    query = query.where(GovernanceRule.status != RuleStatus.ACTIVE)
+
             if tags:
                 # Simple tag filtering
                 for tag in tags:
@@ -523,17 +545,22 @@ class GovernanceEngine:
                     rule.actions = updates["actions"]
                 
                 if "priority" in updates:
-                    rule.priority = updates["priority"]
-                
+                    rule.priority = GovernancePriority(updates["priority"])
+
+                if "category" in updates:
+                    rule.category = GovernanceCategory(updates["category"])
+
                 if "enabled" in updates:
-                    rule.enabled = updates["enabled"]
-                    rule.status = RuleStatus.ACTIVE if updates["enabled"] else RuleStatus.DRAFT
-                
+                    rule.status = RuleStatus.ACTIVE if updates["enabled"] else RuleStatus.INACTIVE
+
+                if "status" in updates:
+                    rule.status = RuleStatus(updates["status"])
+
                 if "tags" in updates:
                     rule.tags = updates["tags"]
-                
+
                 if "metadata" in updates:
-                    rule.metadata = updates["metadata"]
+                    rule.metadata_ = updates["metadata"]
                 
                 rule.updated_by = updated_by
                 rule.updated_at = datetime.utcnow()
@@ -698,6 +725,7 @@ class GovernanceEngine:
     async def _validate_rule_data(
         self,
         rule_type: RuleType,
+        category: GovernanceCategory,
         conditions: Dict[str, Any],
         actions: List[Dict[str, Any]]
     ) -> None:
@@ -722,14 +750,16 @@ class GovernanceEngine:
                 elif "type" not in action:
                     errors.append(f"Action {i} must have a type")
         
-        # Type-specific validation
-        if rule_type == RuleType.ACCESS_CONTROL:
+        # Category-specific validation (categories, not rule_type, model the
+        # access-control/data-protection distinction the old code tried to
+        # express via nonexistent RuleType members)
+        if category == GovernanceCategory.ACCESS:
             required_fields = ["resource", "permission"]
             for field in required_fields:
                 if field not in conditions:
                     errors.append(f"Access control rule requires {field} in conditions")
-        
-        elif rule_type == RuleType.DATA_PROTECTION:
+
+        elif category == GovernanceCategory.COMPLIANCE:
             required_fields = ["data_type", "protection_level"]
             for field in required_fields:
                 if field not in conditions:
@@ -894,19 +924,22 @@ class GovernanceEngine:
             # Filter by applicability
             applicable_rules = []
             for rule in rules:
-                # Check if rule applies to entity type
-                applies_to = rule.conditions.get("applies_to", [])
+                # "applies_to" scopes the rule to an entity type - that's
+                # the only applicability filter here. Whether the rule's
+                # other conditions currently pass is the compliance check
+                # itself (done per-rule by compliance_monitor below) - a
+                # rule that doesn't *currently* satisfy its conditions is
+                # exactly the non-compliant case this is supposed to catch,
+                # not something to silently drop before checking.
+                applies_to = (rule.conditions or {}).get("applies_to", [])
                 if applies_to and entity_type not in applies_to:
                     continue
-                
-                # Check other conditions
-                if context and not await self._evaluate_conditions(rule.conditions, context):
-                    continue
-                
+
                 applicable_rules.append(rule)
-            
-            # Sort by priority
-            applicable_rules.sort(key=lambda r: r.priority, reverse=True)
+
+            # Sort by priority (GovernancePriority is a str Enum - sorts
+            # alphabetically, not by severity - map to a real weight)
+            applicable_rules.sort(key=lambda r: _PRIORITY_WEIGHT.get(r.priority, 0), reverse=True)
             
             return applicable_rules
             
