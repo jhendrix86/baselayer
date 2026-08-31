@@ -18,7 +18,7 @@ from structlog import get_logger
 from ..core.database import db_session_context
 from ..models.output_engine import (
     OutputTemplate, GeneratedOutput, DeliveryLog,
-    TemplateType, OutputStatus, DeliveryStatus
+    TemplateType, OutputType, OutputFormat, OutputStatus, DeliveryStatus
 )
 from ..models.user import User
 from .renderer import OutputRenderer
@@ -77,6 +77,7 @@ class OutputEngine:
         name: str,
         content: str,
         template_type: TemplateType,
+        output_format: Optional[OutputFormat] = None,
         description: Optional[str] = None,
         variables: Optional[List[str]] = None,
         tags: Optional[List[str]] = None,
@@ -85,41 +86,45 @@ class OutputEngine:
     ) -> OutputTemplate:
         """
         Create a new output template.
-        
+
         Args:
             name: Template name
             content: Template content
-            template_type: Type of template
+            template_type: Type of template (stored as the model's
+                output_type - TemplateType/OutputType share the same
+                members, there's no separate column for the former)
+            output_format: Rendered output format (defaults to HTML)
             description: Template description
             variables: Template variables
             tags: Template tags
             engine: Template engine
             created_by: User who created the template
-            
+
         Returns:
             OutputTemplate: Created template
-            
+
         Raises:
             OutputEngineError: If creation fails
         """
+        output_format = output_format or OutputFormat.HTML
         try:
             # Validate template content
             await self._validate_template_content(content, engine)
-            
+
             # Extract variables from content if not provided
             if variables is None:
                 variables = await self._extract_template_variables(content, engine)
-            
+
             async with db_session_context() as session:
                 template = OutputTemplate(
                     name=name,
                     content=content,
-                    template_type=template_type,
+                    output_type=OutputType(template_type.value),
+                    output_format=output_format,
                     description=description,
                     variables=variables or [],
                     tags=tags or [],
                     engine=engine,
-                    status="active",
                     created_by=created_by
                 )
                 
@@ -259,18 +264,18 @@ class OutputEngine:
         Returns:
             OutputTemplate: Template or None
         """
-        # Check cache first
+        # Check cache first. include_content has no effect - the only
+        # caller (api/templates.py) always calls .to_dict() on the result
+        # regardless, so there's nothing to selectively hide here; this
+        # used to return a plain dict in that branch, violating this
+        # method's own Optional[OutputTemplate] contract and breaking the
+        # router's subsequent .to_dict() call.
         cache_key = f"template_{template_id}"
         if cache_key in self.template_cache:
             cached_template = self.template_cache[cache_key]
             cache_age = datetime.utcnow() - cached_template["cached_at"]
-            
+
             if cache_age.total_seconds() < self.cache_ttl:
-                if not include_content:
-                    # Return template without content
-                    template_data = cached_template["template"].to_dict()
-                    template_data["content"] = "[Content not requested]"
-                    return template_data
                 return cached_template["template"]
         
         # Load from database
@@ -312,13 +317,15 @@ class OutputEngine:
         """
         async with db_session_context() as session:
             query = select(OutputTemplate).where(OutputTemplate.deleted_at.is_(None))
-            
+
             if template_type:
-                query = query.where(OutputTemplate.template_type == template_type)
-            
+                query = query.where(OutputTemplate.output_type == OutputType(template_type.value))
+
             if status:
-                query = query.where(OutputTemplate.status == status)
-            
+                # No standalone status column - is_active is the real
+                # active/inactive toggle.
+                query = query.where(OutputTemplate.is_active == (status == "active"))
+
             if tags:
                 # Simple tag filtering - in real implementation would use proper tag relationships
                 for tag in tags:
@@ -385,7 +392,7 @@ class OutputEngine:
                 template.tags = updates["tags"]
             
             if "status" in updates:
-                template.status = updates["status"]
+                template.is_active = (updates["status"] == "active")
             
             template.updated_by = updated_by
             template.updated_at = datetime.utcnow()

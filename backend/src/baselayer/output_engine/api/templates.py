@@ -11,11 +11,12 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import func
 from structlog import get_logger
 
 from ...core.database import db_session_context
 from ...models.output_engine import (
-    OutputTemplate, TemplateType
+    OutputTemplate, TemplateType, OutputType, OutputFormat
 )
 from ...models.user import User
 from ...core.auth import get_current_user
@@ -121,27 +122,32 @@ async def get_template_statistics(
     """
     try:
         async with db_session_context() as session:
-            # Get template counts by type
+            # Get template counts by type (no separate template_type column
+            # - output_type is the real, equivalent field)
             result = await session.execute(
                 select(
-                    OutputTemplate.template_type,
+                    OutputTemplate.output_type,
                     func.count(OutputTemplate.id)
                 ).where(
                     OutputTemplate.deleted_at.is_(None)
-                ).group_by(OutputTemplate.template_type)
+                ).group_by(OutputTemplate.output_type)
             )
             type_counts = dict(result.all())
-            
-            # Get template counts by status
+
+            # Get template counts by status (no status column - is_active
+            # is the real active/inactive toggle)
             result = await session.execute(
                 select(
-                    OutputTemplate.status,
+                    OutputTemplate.is_active,
                     func.count(OutputTemplate.id)
                 ).where(
                     OutputTemplate.deleted_at.is_(None)
-                ).group_by(OutputTemplate.status)
+                ).group_by(OutputTemplate.is_active)
             )
-            status_counts = dict(result.all())
+            status_counts = {
+                ("active" if is_active else "inactive"): count
+                for is_active, count in result.all()
+            }
             
             # Get total templates
             result = await session.execute(
@@ -211,6 +217,7 @@ async def create_template(
             name=template_data["name"],
             content=template_data["content"],
             template_type=TemplateType(template_data["template_type"]),
+            output_format=OutputFormat(template_data["output_format"]) if "output_format" in template_data else None,
             description=template_data.get("description"),
             variables=template_data.get("variables"),
             tags=template_data.get("tags"),

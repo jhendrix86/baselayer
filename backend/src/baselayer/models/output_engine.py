@@ -5,7 +5,7 @@ Output templates, generation tracking, and delivery management
 for the Output Engineering subsystem.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import uuid
 from enum import Enum
@@ -284,6 +284,43 @@ class OutputTemplate(BaseModel):
         """String representation of the output template."""
         return f"<OutputTemplate(name='{self.name}', type='{self.output_type}', format='{self.output_format}')>"
     
+    @property
+    def content(self) -> str:
+        """
+        Alias for template_content.
+
+        renderer.py/generator.py were written against a `content` field
+        that was never added to this model - `template_content` is the
+        real column. Rather than rewrite every read site (15+ in
+        renderer.py alone), proxy through a real read/write property -
+        SQLAlchemy's default declarative __init__ does setattr() for
+        kwargs, so `OutputTemplate(content=...)` construction sites work
+        through this too, not just attribute reads.
+        """
+        return self.template_content
+
+    @content.setter
+    def content(self, value: str) -> None:
+        self.template_content = value
+
+    @property
+    def engine(self) -> str:
+        """
+        Template rendering engine (jinja2/string/simple).
+
+        No dedicated column exists for this - renderer.py reads/writes it
+        as if there were one. generation_config (JSONB, meant for exactly
+        this kind of generation-specific setting) is the real backing
+        store.
+        """
+        return (self.generation_config or {}).get("engine", "jinja2")
+
+    @engine.setter
+    def engine(self, value: str) -> None:
+        # Reassign (not in-place mutate) so SQLAlchemy's change tracking
+        # on the plain JSONB column actually sees the write.
+        self.generation_config = {**(self.generation_config or {}), "engine": value}
+
     @property
     def is_approved(self) -> bool:
         """Check if template is approved."""
@@ -573,7 +610,7 @@ class GeneratedOutput(BaseModel):
         Args:
             hours: Hours until expiration
         """
-        self.expires_at = datetime.utcnow() + datetime.timedelta(hours=hours)
+        self.expires_at = datetime.utcnow() + timedelta(hours=hours)
     
     def grant_access(self, user_id: str) -> None:
         """
@@ -832,7 +869,7 @@ class DeliveryLog(BaseModel):
         
         # Exponential backoff: 1min, 2min, 4min, 8min, etc.
         retry_delay_minutes = 2 ** (int(self.retry_count) - 1)
-        self.next_retry_at = datetime.utcnow() + datetime.timedelta(minutes=retry_delay_minutes)
+        self.next_retry_at = datetime.utcnow() + timedelta(minutes=retry_delay_minutes)
     
     def cancel(self) -> None:
         """Cancel the delivery."""
