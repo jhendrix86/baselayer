@@ -1,6 +1,19 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+
+// Backend the dev server proxies /api, /health, /metrics to.
+// Default is the local dev backend; override to run against a remote
+// (e.g. the live Nexus stack) without editing this file:
+//   VITE_API_TARGET=http://100.91.161.114:8000 pnpm dev
+// or, if that host's :8000 isn't reachable directly, tunnel it first:
+//   ssh -N -L 8000:localhost:8000 nexus   # then leave the default
+const API_TARGET =
+  process.env.VITE_API_TARGET ||
+  loadEnv('', process.cwd(), 'VITE_').VITE_API_TARGET ||
+  'http://localhost:8000'
+
+const proxyEntry = { target: API_TARGET, changeOrigin: true, secure: false }
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -22,21 +35,9 @@ export default defineConfig({
     port: 3000,
     host: true,
     proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/health': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/metrics': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-      },
+      '/api': { ...proxyEntry },
+      '/health': { ...proxyEntry },
+      '/metrics': { ...proxyEntry },
     },
   },
   build: {
