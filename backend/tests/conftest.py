@@ -10,7 +10,7 @@ from typing import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.dialects.postgresql import ARRAY, ENUM, JSONB, TSVECTOR, UUID
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.compiler import compiles
@@ -118,8 +118,11 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     
     app.dependency_overrides[get_db_session] = override_get_db_session
     
-    # Create test client
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    # Create test client. httpx >= 0.28 removed the AsyncClient(app=...)
+    # shortcut (this repo pins only httpx>=0.25.0); use ASGITransport.
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         yield ac
     
     # Clean up
