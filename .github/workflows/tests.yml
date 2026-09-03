@@ -35,6 +35,10 @@ jobs:
           pytest tests -o addopts="" -o filterwarnings="ignore" -q
         env:
           SECRET_KEY: test-secret-key-for-ci
+          # config.py's Settings.database_url is required at import time;
+          # conftest overrides it to sqlite in-memory, but Settings() is
+          # constructed before that runs, so it needs a value in env.
+          DATABASE_URL: sqlite+aiosqlite:///:memory:
 
   frontend:
     name: Frontend
@@ -42,9 +46,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # No `version:` — pnpm/action-setup reads "packageManager": "pnpm@8.7.0"
+      # from the root package.json. Specifying both errors with
+      # ERR_PNPM_BAD_PM_VERSION / "Multiple versions of pnpm specified".
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
