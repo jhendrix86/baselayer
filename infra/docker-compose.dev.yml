@@ -138,35 +138,32 @@ services:
           memory: 1G
           cpus: '1.0'
 
-  # Frontend Development Server
+  # Frontend — built Vite SPA served by nginx on :3000 (the port
+  # Caddyfile.dev's catch-all reverse-proxies to). Not a dev server:
+  # rebuild the image to pick up source changes. Access it through Caddy
+  # on :80, not directly — the SPA's API calls are origin-relative
+  # (/api/v1) and only resolve when Caddy is in front.
   frontend:
     build:
       context: ..
-      dockerfile: infra/Dockerfile.frontend.dev
+      dockerfile: infra/Dockerfile.frontend
+      target: production
     container_name: baselayer-frontend-dev
     restart: unless-stopped
-    environment:
-      - VITE_API_URL=http://localhost:8000
-      - VITE_WS_URL=ws://localhost:8000
-    volumes:
-      - ../frontend:/app
-      - /app/node_modules
-    ports:
-      - "3000:3000"
     networks:
       - baselayer-dev
     depends_on:
       - backend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
       interval: 30s
       timeout: 10s
       retries: 3
     deploy:
       resources:
         limits:
-          memory: 512M
-          cpus: '0.5'
+          memory: 128M
+          cpus: '0.25'
 
   # Development Tools
   adminer:
@@ -197,6 +194,14 @@ services:
       - baselayer-dev
     depends_on:
       - redis
+    # Override the image's bundled healthcheck.js — it's a known upstream
+    # flake that reports unhealthy while the UI serves fine. Plain HTTP
+    # probe of the UI instead.
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     deploy:
       resources:
         limits:
