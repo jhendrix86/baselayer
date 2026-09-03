@@ -135,8 +135,9 @@ async def test_user(db_session: AsyncSession) -> User:
     from baselayer.core.auth import password_manager
     
     user = User(
+        username="testuser",
         email="test@example.com",
-        name="Test User",
+        full_name="Test User",
         password_hash=password_manager.hash_password("testpassword123"),
         role=UserRole.OPERATOR,
         is_active=True
@@ -155,8 +156,9 @@ async def admin_user(db_session: AsyncSession) -> User:
     from baselayer.core.auth import password_manager
     
     user = User(
+        username="adminuser",
         email="admin@example.com",
-        name="Admin User",
+        full_name="Admin User",
         password_hash=password_manager.hash_password("adminpassword123"),
         role=UserRole.ADMIN,
         is_active=True
