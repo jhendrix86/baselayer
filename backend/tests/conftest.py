@@ -11,7 +11,9 @@ from typing import AsyncGenerator, Generator
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy.dialects.postgresql import ARRAY, ENUM, JSONB, TSVECTOR, UUID
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -19,6 +21,46 @@ from baselayer.core.config import get_settings
 from baselayer.core.database import Base, get_db_session
 from baselayer.main import app
 from baselayer.models.user import User, UserRole
+
+
+# --- SQLite compatibility shims for Postgres-only column types ---
+# The models (agents / codex / core_loop / governance / income_engine /
+# output_engine / protocols) declare Postgres-native column types. This
+# suite runs against sqlite+aiosqlite in-memory, whose compiler can't
+# render them, so Base.metadata.create_all() aborted with
+# `CompileError: can't render element of type JSONB` before any test could
+# run (see backend/src/baselayer/core/database.py's note on this gap).
+#
+# These @compiles hooks are scoped to the "sqlite" dialect ONLY — the
+# Postgres DDL and runtime path are completely unaffected (verified: a
+# CreateTable compiled against the postgresql dialect still emits
+# UUID / JSONB / ARRAY / TSVECTOR / ENUM natively). They register at
+# import time, well before any create_all(), and only ever load here in
+# the test conftest.
+@compiles(JSONB, "sqlite")
+def _sqlite_jsonb(element, compiler, **kw):
+    return "JSON"
+
+
+@compiles(ARRAY, "sqlite")
+def _sqlite_array(element, compiler, **kw):
+    return "JSON"
+
+
+@compiles(TSVECTOR, "sqlite")
+def _sqlite_tsvector(element, compiler, **kw):
+    return "TEXT"
+
+
+@compiles(UUID, "sqlite")
+def _sqlite_uuid(element, compiler, **kw):
+    return "CHAR(32)"
+
+
+@compiles(ENUM, "sqlite")
+def _sqlite_enum(element, compiler, **kw):
+    return "VARCHAR(255)"
+
 
 # Test settings
 settings = get_settings()
