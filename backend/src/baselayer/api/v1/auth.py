@@ -168,19 +168,21 @@ async def login(
 
 @router.post("/refresh", response_model=RefreshTokenResponse)
 async def refresh_token(
-    refresh_data: RefreshTokenRequest
+    refresh_data: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db_session)
 ) -> RefreshTokenResponse:
     """
     Refresh access token using refresh token.
-    
+
     Args:
         refresh_data: Refresh token data
-        
+        db: Database session
+
     Returns:
         RefreshTokenResponse: New access token
     """
     try:
-        tokens = await auth_service.refresh_access_token(refresh_data.refresh_token)
+        tokens = await auth_service.refresh_access_token(refresh_data.refresh_token, db)
         
         logger.info("Access token refreshed successfully")
         
@@ -387,15 +389,17 @@ async def confirm_password_reset(
 @router.post("/register", response_model=UserResponse)
 async def register_user(
     user_data: RegisterRequest,
+    current_user: User = Depends(require_min_role(UserRole.ADMIN)),
     db: AsyncSession = Depends(get_db_session)
 ) -> UserResponse:
     """
     Register a new user (admin only).
-    
+
     Args:
         user_data: User registration data
+        current_user: Authenticated admin performing the registration
         db: Database session
-        
+
     Returns:
         UserResponse: Created user information
     """

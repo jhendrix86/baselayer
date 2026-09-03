@@ -19,7 +19,7 @@ from sqlalchemy.future import select
 from structlog import get_logger
 
 from .config import get_settings
-from .database import get_db_session, db_session_context
+from .database import get_db_session
 from ..models.user import User, UserRole
 
 logger = get_logger(__name__)
@@ -433,42 +433,53 @@ class AuthenticationService:
             "expires_in": self.token_manager.access_token_expire_minutes * 60
         }
     
-    async def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
-        """Create new access token from refresh token."""
+    async def refresh_access_token(self, refresh_token: str, db: AsyncSession) -> Dict[str, Any]:
+        """
+        Create new access token from refresh token.
+
+        Takes the caller's injected `db` (FastAPI's `Depends(get_db_session)`)
+        rather than opening its own via `db_session_context()`. That
+        previously built a second, independent engine from `get_engine()`
+        on every call - in production it's a needless extra connection
+        pool for what should be one query; under the test suite's
+        `sqlite+aiosqlite:///:memory:` override it was actively wrong, since
+        a fresh engine against `:memory:` opens its own empty database that
+        never sees the tables/rows the test's session created, so this
+        route 401'd ("User not found") for every real refresh.
+        """
         try:
             # Verify refresh token
             payload = self.token_manager.verify_token(refresh_token, "refresh")
             user_id = payload.get("sub")
-            
+
             if user_id is None:
                 raise AuthenticationError("Invalid refresh token")
-            
+
             # Get user from database
-            async with db_session_context() as db:
-                result = await db.execute(
-                    select(User).where(User.id == uuid.UUID(user_id), User.is_active == True)
-                )
-                user = result.scalar_one_or_none()
-                
-                if user is None:
-                    raise AuthenticationError("User not found or inactive")
-                
-                # Create new access token
-                access_token_data = {
-                    "sub": str(user.id),
-                    "email": user.email,
-                    "role": user.role.value,
-                    "name": user.full_name,
-                    "tenant_id": str(user.tenant_id) if user.tenant_id else None
-                }
-                access_token = self.token_manager.create_access_token(access_token_data)
-                
-                return {
-                    "access_token": access_token,
-                    "token_type": "bearer",
-                    "expires_in": self.token_manager.access_token_expire_minutes * 60
-                }
-                
+            result = await db.execute(
+                select(User).where(User.id == uuid.UUID(user_id), User.is_active == True)
+            )
+            user = result.scalar_one_or_none()
+
+            if user is None:
+                raise AuthenticationError("User not found or inactive")
+
+            # Create new access token
+            access_token_data = {
+                "sub": str(user.id),
+                "email": user.email,
+                "role": user.role.value,
+                "name": user.full_name,
+                "tenant_id": str(user.tenant_id) if user.tenant_id else None
+            }
+            access_token = self.token_manager.create_access_token(access_token_data)
+
+            return {
+                "access_token": access_token,
+                "token_type": "bearer",
+                "expires_in": self.token_manager.access_token_expire_minutes * 60
+            }
+
         except AuthenticationError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

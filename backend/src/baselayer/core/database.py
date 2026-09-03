@@ -91,12 +91,17 @@ def get_engine() -> AsyncEngine:
     global engine
     if engine is None:
         settings = get_settings()
-        engine = create_async_engine(
-            settings.database_url,
-            pool_size=settings.database_pool_size,
-            max_overflow=settings.database_max_overflow,
-            echo=settings.debug,
-        )
+        engine_kwargs: dict = {"echo": settings.debug}
+        # pool_size/max_overflow configure QueuePool and aren't accepted by
+        # SQLite's default pool (NullPool/SingletonThreadPool depending on
+        # URL) - passing them raises a TypeError before the engine is even
+        # built. Only relevant path today is the test suite's
+        # sqlite+aiosqlite:///:memory: override (tests/conftest.py); every
+        # real deployment uses Postgres.
+        if not settings.database_url.startswith("sqlite"):
+            engine_kwargs["pool_size"] = settings.database_pool_size
+            engine_kwargs["max_overflow"] = settings.database_max_overflow
+        engine = create_async_engine(settings.database_url, **engine_kwargs)
     return engine
 
 
