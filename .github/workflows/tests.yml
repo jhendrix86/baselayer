@@ -38,7 +38,7 @@ jobs:
           # config.py's Settings.database_url is required at import time;
           # conftest overrides it to sqlite in-memory, but Settings() is
           # constructed before that runs, so it needs a value in env.
-          DATABASE_URL: sqlite+aiosqlite:///:memory:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
 
   frontend:
     name: Frontend
