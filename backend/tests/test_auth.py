@@ -60,8 +60,9 @@ class TestAuthentication:
         
         # Create inactive user
         inactive_user = User(
+            username="inactiveuser",
             email="inactive@example.com",
-            name="Inactive User",
+            full_name="Inactive User",
             password_hash=password_manager.hash_password("password123"),
             role=UserRole.OPERATOR,
             is_active=False
@@ -263,7 +264,12 @@ class TestAuthorization:
         operator_permissions = PermissionManager.get_role_permissions(UserRole.OPERATOR)
         admin_permissions = PermissionManager.get_role_permissions(UserRole.ADMIN)
 
-        assert len(admin_permissions) > len(operator_permissions)
+        # ADMIN's authority is in broader grants (write:all / delete:all /
+        # manage:system), not in a longer list — OPERATOR actually has more
+        # granular entries. Assert the capability gap, not the count.
+        admin_only = {"write:all", "delete:all", "manage:system", "manage:users"}
+        assert admin_only <= set(admin_permissions)
+        assert not (admin_only & set(operator_permissions))
         assert "read:own" in operator_permissions
         assert "manage:users" in admin_permissions
 
@@ -360,8 +366,9 @@ class TestUserRegistration:
     
     @pytest.mark.asyncio
     @pytest.mark.api
-    async def test_register_user_duplicate_email(self, client: AsyncClient, admin_headers):
+    async def test_register_user_duplicate_email(self, client: AsyncClient, admin_headers, test_user):
         """Test user registration with duplicate email."""
+        # test_user fixture creates test@example.com
         user_data = {
             "email": "test@example.com",  # Already exists
             "password": "newpassword123",
