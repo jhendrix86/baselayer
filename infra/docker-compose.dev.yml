@@ -197,8 +197,16 @@ services:
     # Override the image's bundled healthcheck.js — it's a known upstream
     # flake that reports unhealthy while the UI serves fine. Plain HTTP
     # probe of the UI instead.
+    #
+    # Verified live 2026-09-07 that the first cut of this fix (using
+    # "localhost") was itself broken: this image's BusyBox wget resolves
+    # "localhost" to ::1 (IPv6) first, nothing listens there (the app
+    # binds 0.0.0.0:8081, IPv4 only), and this wget build has no -4 flag
+    # to force IPv4 - every check failed with "Connection refused" even
+    # though the app was serving real 200s the whole time. Confirmed
+    # 127.0.0.1 explicitly sidesteps the resolver and passes for real.
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8081/"]
       interval: 30s
       timeout: 10s
       retries: 3
