@@ -3,6 +3,20 @@ MINT Gumroad Integration
 
 Async HTTP client for Gumroad API integration
 with rate limiting, error handling, and caching.
+
+KNOWN LIMITATION (verified 2026-09-08, not previously caught since this
+client was never run against the live API): Gumroad's real v2 API has
+**no working endpoint to create, update, or delete a product**, and no
+per-product analytics endpoint. `POST /products` is documented in some
+unofficial mirrors but returns a real 404 in production (see Gumroad's
+own open-source repo, antiwork/gumroad issue #4019 - "API for creating
+and editing products" is a still-open feature request, not a shipped
+one). Product listings must be created through Gumroad's web dashboard
+by a human. `create_product()`, `update_product()`, `delete_product()`,
+and `get_analytics()` below will raise a real `BaseLayerError` wrapping
+an HTTP 404 every time they're called against the live API - they are
+NOT currently usable. `get_product()` and `list_products()` (GET-only)
+are real and confirmed working.
 """
 
 import asyncio

@@ -3,6 +3,18 @@ MINT Gumroad Publisher Agent
 
 Handles Gumroad API integration for publishing
 digital products with error handling and retry logic.
+
+KNOWN LIMITATION (verified 2026-09-08): this agent's entire purpose -
+create a product on Gumroad via `GumroadClient.create_product()` - calls
+a real API endpoint that does not exist. Gumroad's v2 API has no way to
+create, update, or delete a product, or pull per-product analytics
+(confirmed against Gumroad's own open-source repo, antiwork/gumroad
+issue #4019, still open). Every real invocation of `execute()` here will
+retry `max_retries` times against a 404 and return a synthetic
+"published": false / error result - it has never actually published
+anything and cannot, as currently designed. Product listings are
+dashboard-only. `list_products()` and `get_sales()` on the `GumroadClient`
+below are real and would work; nothing else in this file does.
 """
 
 import asyncio
