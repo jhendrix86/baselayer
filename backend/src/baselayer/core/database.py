@@ -4,16 +4,20 @@ BaseLayer Database Configuration
 Handles SQLAlchemy async database setup and connection management.
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from sqlalchemy import event
+import structlog
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import DeclarativeBase, Session, with_loader_criteria
 
 from baselayer.core.config import get_settings
 from baselayer.core.tenant_context import get_tenant_context
+
+logger = structlog.get_logger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -101,8 +105,74 @@ def get_engine() -> AsyncEngine:
         if not settings.database_url.startswith("sqlite"):
             engine_kwargs["pool_size"] = settings.database_pool_size
             engine_kwargs["max_overflow"] = settings.database_max_overflow
+            # Validate a pooled connection before handing it out. On the
+            # deployment target Postgres is restarted (or briefly stalls
+            # under the post-reboot I/O storm) out from under a
+            # long-lived pool; without pre-ping the first query after that
+            # fails with a stale-connection error instead of transparently
+            # reconnecting.
+            engine_kwargs["pool_pre_ping"] = True
         engine = create_async_engine(settings.database_url, **engine_kwargs)
     return engine
+
+
+async def _check_database_connection() -> None:
+    """Open a throwaway connection and run ``SELECT 1``. Raises on failure.
+
+    Factored out so ``wait_for_database`` has a single seam to exercise
+    (and for tests to substitute).
+    """
+    async with get_engine().connect() as conn:
+        await conn.execute(text("SELECT 1"))
+
+
+async def wait_for_database(
+    max_attempts: int = 30,
+    base_delay: float = 1.0,
+    max_delay: float = 10.0,
+) -> None:
+    """Block until the database accepts a connection, or raise.
+
+    On the deployment target (~40 containers cold-starting together on an
+    HDD-backed host after a reboot), Postgres is regularly not ready for
+    tens of seconds while the I/O storm passes. Without this gate the
+    backend's first query in ``create_tables()`` raises
+    ConnectionRefused/OperationalError, the container exits, and
+    ``restart: unless-stopped`` just crash-loops against the same closed
+    window until a human runs ``docker restart`` by hand. This has
+    recurred on essentially every Nexus reboot (see HANDOFF.md,
+    2026-08-29 through 2026-09-08).
+
+    Retries with capped exponential backoff. With the defaults the
+    worst-case total wait is ~4.5 min (1+2+4+8, then 10s flat), comfortably
+    longer than any observed storm; after that it gives up so a genuinely
+    misconfigured ``DATABASE_URL`` still fails loudly instead of hanging
+    forever.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            await _check_database_connection()
+            if attempt > 1:
+                logger.info("database.ready", attempts=attempt)
+            return
+        except Exception as exc:  # noqa: BLE001 - any connect failure is retryable here
+            last_exc = exc
+            if attempt == max_attempts:
+                break
+            delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
+            logger.warning(
+                "database.not_ready",
+                attempt=attempt,
+                max_attempts=max_attempts,
+                retry_in_seconds=round(delay, 1),
+                error=str(exc),
+            )
+            await asyncio.sleep(delay)
+
+    raise RuntimeError(
+        f"database not reachable after {max_attempts} attempts"
+    ) from last_exc
 
 
 def get_session_maker() -> async_sessionmaker[AsyncSession]:

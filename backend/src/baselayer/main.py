@@ -16,7 +16,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from baselayer.core.config import get_settings
-from baselayer.core.database import create_tables, close_database
+from baselayer.core.database import create_tables, close_database, wait_for_database
 from baselayer.core.logging import setup_logging
 from baselayer.core.middleware import (
     RequestIDMiddleware,
@@ -71,6 +71,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     logger.info("Starting BaseLayer API server", version="0.1.0")
     
+    # Wait out any post-reboot window where Postgres isn't accepting
+    # connections yet before the first query. Without this the container
+    # crash-loops instead of self-healing - see wait_for_database's
+    # docstring and HANDOFF.md's recurring "baselayer-backend-dev
+    # unhealthy after reboot" entries.
+    await wait_for_database()
+
     # Initialize database tables
     await create_tables()
     logger.info("Database tables initialized")
