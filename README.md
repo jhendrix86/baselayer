@@ -54,3 +54,16 @@ docker-compose -f infra/docker-compose.prod.yml up
 ## Governance
 
 This project operates under the NODEDEMAND Governance Megasuite with SYS-CRP requirements compliance.
+
+## Business Context
+
+This repo is engineering-only. Business, brand, and venture context lives in
+the **Empire OS** Notion workspace:
+
+- [Command Center](https://app.notion.com/p/3a703d47c57e81d4aaf3d1136bc94b55) — master index
+- [TALORA — Build Status & Capability Log](https://app.notion.com/p/3cf03d47c57e8192b87ef6f2003323c6) — tracks this repo's build state from the business side
+
+Notion's log currently shows this repo's CI as failing (Backend job,
+`test_auth.py`, run #9, 2026-09-07) and not yet deployed as the production
+automation hub — confirm current state in this repo directly before trusting
+that log, since it may be stale.
